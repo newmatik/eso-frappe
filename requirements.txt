@@ -35,6 +35,7 @@ pyasn1
 zxcvbn-python
 unittest-xml-reporting
 oauthlib
+pdfkit
 PyJWT
 PyPDF2
 openpyxl
@@ -53,3 +54,4 @@ google-auth
 google-auth-httplib2
 google-auth-oauthlib
 faker
+stripe

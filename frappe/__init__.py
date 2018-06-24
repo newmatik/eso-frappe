@@ -15,9 +15,9 @@ from faker import Faker
 
 # public
 from .exceptions import *
-from .utils.jinja import get_jenv, get_template, render_template, get_email_from_template
+from .utils.jinja import (get_jenv, get_template, render_template, get_email_from_template, get_jloader)
 
-__version__ = '10.1.30'
+__version__ = '10.1.37'
 __title__ = "Frappe Framework"
 
 local = Local()
