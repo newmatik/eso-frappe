@@ -16,13 +16,13 @@ Example:
 '''
 
 from __future__ import unicode_literals, print_function
+from datetime import datetime
 from six.moves import range
 import frappe, json, os
 from frappe.utils import cstr, cint
-from frappe.model import default_fields, no_value_fields, optional_fields
+from frappe.model import default_fields, no_value_fields, optional_fields, data_fieldtypes
 from frappe.model.document import Document
 from frappe.model.base_document import BaseDocument
-from frappe.model.db_schema import type_map
 from frappe.modules import load_doctype_module
 from frappe.model.workflow import get_workflow_name
 from frappe import _
@@ -30,8 +30,14 @@ from frappe import _
 def get_meta(doctype, cached=True):
 	if cached:
 		if not frappe.local.meta_cache.get(doctype):
-			frappe.local.meta_cache[doctype] = frappe.cache().hget("meta", doctype,
-				lambda: Meta(doctype))
+			meta = frappe.cache().hget("meta", doctype)
+			if meta:
+				meta = Meta(meta)
+			else:
+				meta = Meta(doctype)
+				frappe.cache().hset('meta', doctype, meta.as_dict())
+			frappe.local.meta_cache[doctype] = meta
+
 		return frappe.local.meta_cache[doctype]
 	else:
 		return load_meta(doctype)
@@ -67,11 +73,16 @@ class Meta(Document):
 
 	def __init__(self, doctype):
 		self._fields = {}
-		if isinstance(doctype, Document):
+		if isinstance(doctype, dict):
+			super(Meta, self).__init__(doctype)
+
+		elif isinstance(doctype, Document):
 			super(Meta, self).__init__(doctype.as_dict())
+			self.process()
+
 		else:
 			super(Meta, self).__init__("DocType", doctype)
-		self.process()
+			self.process()
 
 	def load_from_db(self):
 		try:
@@ -81,6 +92,39 @@ class Meta(Document):
 				self.__dict__.update(load_doctype_from_file(self.name))
 			else:
 				raise
+
+	def process(self):
+		# don't process for special doctypes
+		# prevent's circular dependency
+		if self.name in self.special_doctypes:
+			return
+
+		self.add_custom_fields()
+		self.apply_property_setters()
+		self.sort_fields()
+		self.get_valid_columns()
+		self.set_custom_permissions()
+
+	def as_dict(self, no_nulls = False):
+		def serialize(doc):
+			out = {}
+			for key in doc.__dict__:
+				value = doc.__dict__.get(key)
+
+				if isinstance(value, (list, tuple)):
+					if len(value) > 0 and hasattr(value[0], '__dict__'):
+						value = [serialize(d) for d in value]
+					else:
+						# non standard list object, skip
+						continue
+
+				if (isinstance(value, (frappe.text_type, int, float, datetime, list, tuple))
+					or (not no_nulls and value is None)):
+					out[key] = value
+
+			return out
+
+		return serialize(self)
 
 	def get_link_fields(self):
 		return self.get("fields", {"fieldtype": "Link", "options":["!=", "[Select]"]})
@@ -126,7 +170,7 @@ class Meta(Document):
 				self._valid_columns = get_table_columns(self.name)
 			else:
 				self._valid_columns = self.default_fields + \
-					[df.fieldname for df in self.get("fields") if df.fieldtype in type_map]
+					[df.fieldname for df in self.get("fields") if df.fieldtype in data_fieldtypes]
 
 		return self._valid_columns
 
@@ -210,7 +254,7 @@ class Meta(Document):
 
 	def get_list_fields(self):
 		list_fields = ["name"] + [d.fieldname \
-			for d in self.fields if (d.in_list_view and d.fieldtype in type_map)]
+			for d in self.fields if (d.in_list_view and d.fieldtype in data_fieldtypes)]
 		if self.title_field and self.title_field not in list_fields:
 			list_fields.append(self.title_field)
 		return list_fields
@@ -241,25 +285,13 @@ class Meta(Document):
 	def get_workflow(self):
 		return get_workflow_name(self.name)
 
-	def process(self):
-		# don't process for special doctypes
-		# prevent's circular dependency
-		if self.name in self.special_doctypes:
-			return
-
-		self.add_custom_fields()
-		self.apply_property_setters()
-		self.sort_fields()
-		self.get_valid_columns()
-		self.set_custom_permissions()
-
 	def add_custom_fields(self):
 		try:
 			self.extend("fields", frappe.db.sql("""SELECT * FROM `tabCustom Field`
 				WHERE dt = %s AND docstatus < 2""", (self.name,), as_dict=1,
 				update={"is_custom_field": 1}))
 		except Exception as e:
-			if e.args[0]==1146:
+			if frappe.db.is_table_missing(e):
 				return
 			else:
 				raise
@@ -419,10 +451,8 @@ def is_single(doctype):
 		raise Exception('Cannot determine whether %s is single' % doctype)
 
 def get_parent_dt(dt):
-	parent_dt = frappe.db.sql("""select parent from tabDocField
-		where fieldtype="Table" and options=%s and (parent not like "old_parent:%%")
-		limit 1""", dt)
-	return parent_dt and parent_dt[0][0] or ''
+	parent_dt = frappe.db.get_all('DocField', 'parent', dict(fieldtype='Table', options=dt), limit=1)
+	return parent_dt and parent_dt[0].parent or ''
 
 def set_fieldname(field_id, fieldname):
 	frappe.db.set_value('DocField', field_id, 'fieldname', fieldname)
@@ -448,7 +478,7 @@ def get_field_currency(df, doc=None):
 		if ":" in cstr(df.get("options")):
 			split_opts = df.get("options").split(":")
 			if len(split_opts)==3:
-				currency = frappe.db.get_value(split_opts[0], doc.get(split_opts[1]), split_opts[2])
+				currency = frappe.get_cached_value(split_opts[0], doc.get(split_opts[1]), split_opts[2])
 		else:
 			currency = doc.get(df.get("options"))
 			if doc.parent:

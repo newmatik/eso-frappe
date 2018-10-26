@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const chalk = require('chalk');
 const log = console.log; // eslint-disable-line
 
@@ -8,11 +9,13 @@ const node_resolve = require('rollup-plugin-node-resolve');
 const postcss = require('rollup-plugin-postcss');
 const buble = require('rollup-plugin-buble');
 const uglify = require('rollup-plugin-uglify');
+const vue = require('rollup-plugin-vue');
 const frappe_html = require('./frappe-html-plugin');
 
 const production = process.env.FRAPPE_ENV === 'production';
 
 const {
+	apps_list,
 	assets_path,
 	bench_path,
 	get_public_path,
@@ -30,21 +33,37 @@ function get_rollup_options(output_file, input_files) {
 
 function get_rollup_options_for_js(output_file, input_files) {
 
+	const node_resolve_paths = [].concat(
+		// node_modules of apps directly importable
+		apps_list.map(app => path.resolve(get_app_path(app), '../node_modules')).filter(fs.existsSync),
+		// import js file of any app if you provide the full path
+		apps_list.map(app => path.resolve(get_app_path(app), '..')).filter(fs.existsSync)
+	);
+
 	const plugins = [
 		// enables array of inputs
 		multi_entry(),
 		// .html -> .js
 		frappe_html(),
+		// ignore css imports
+		ignore_css(),
+		// .vue -> .js
+		vue.default(),
 		// ES6 -> ES5
 		buble({
 			objectAssign: 'Object.assign',
 			transforms: {
-				dangerousForOf: true
+				dangerousForOf: true,
+				classes: false
 			},
 			exclude: [path.resolve(bench_path, '**/*.css'), path.resolve(bench_path, '**/*.less')]
 		}),
 		commonjs(),
-		node_resolve(),
+		node_resolve({
+			customResolveOptions: {
+				paths: node_resolve_paths
+			}
+		}),
 		production && uglify()
 	];
 
@@ -57,6 +76,14 @@ function get_rollup_options_for_js(output_file, input_files) {
 			onwarn({ code, message, loc, frame }) {
 				// skip warnings
 				if (['EVAL', 'SOURCEMAP_BROKEN', 'NAMESPACE_CONFLICT'].includes(code)) return;
+
+				if ('UNRESOLVED_IMPORT' === code) {
+					log(chalk.yellow.underline(code), ':', message);
+					const command = chalk.yellow('bench setup requirements');
+					log(`Cannot find some dependencies. You may have to run "${command}" to install them.`);
+					log();
+					return;
+				}
 
 				if (loc) {
 					log(`${loc.file} (${loc.line}:${loc.column}) ${message}`);
@@ -146,6 +173,21 @@ function get_options_for(app) {
 		})
 		.filter(Boolean);
 }
+
+function ignore_css() {
+	return {
+		name: 'ignore-css',
+		transform(code, id) {
+			if (!['.css', '.scss', '.sass', '.less'].some(ext => id.endsWith(ext))) {
+				return null;
+			}
+
+			return `
+				// ignored ${id}
+			`;
+		}
+	};
+};
 
 module.exports = {
 	get_options_for

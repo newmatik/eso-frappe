@@ -17,7 +17,9 @@ frappe.ui.Filter = class {
 			["<", "<"],
 			[">=", ">="],
 			["<=", "<="],
-			["Between", __("Between")]
+			["Between", __("Between")],
+			["descendants of", __("Descendants Of")],
+			["ancestors of", __("Ancestors Of")]
 		];
 		this.invalid_condition_map = {
 			Date: ['like', 'not like'],
@@ -46,9 +48,6 @@ frappe.ui.Filter = class {
 			filter_fields: this.filter_fields,
 			select: (doctype, fieldname) => {
 				this.set_field(doctype, fieldname);
-			},
-			filter_options: (doctype, fieldname) => {
-				return this.filter_items(doctype, fieldname);
 			}
 		});
 
@@ -140,7 +139,9 @@ frappe.ui.Filter = class {
 			value = value.join(',');
 		}
 
-		if (value !== undefined || value !== null) {
+		if (Array.isArray(value)) {
+			this._filter_value_set = this.field.set_value(value);
+		} else if (value !== undefined || value !== null) {
 			this._filter_value_set = this.field.set_value((value + '').trim());
 		}
 		return this._filter_value_set;
@@ -185,7 +186,7 @@ frappe.ui.Filter = class {
 	make_field(df, old_fieldtype) {
 		let old_text = this.field ? this.field.get_value() : null;
 		this.hide_invalid_conditions(df.fieldtype, df.original_type);
-
+		this.hide_nested_set_conditions(df);
 		let field_area = this.filter_edit_area.find('.filter-field').empty().get(0);
 		let f = frappe.ui.form.make_control({
 			df: df,
@@ -216,7 +217,6 @@ frappe.ui.Filter = class {
 			this.hidden
 		];
 	}
-
 	get_selected_value() {
 		return this.utils.get_selected_value(this.field, this.get_condition());
 	}
@@ -229,6 +229,7 @@ frappe.ui.Filter = class {
 		let $condition_field = this.filter_edit_area.find('.condition');
 		$condition_field.val(condition);
 		if(trigger_change) $condition_field.change();
+
 	}
 
 	make_tag() {
@@ -290,6 +291,20 @@ frappe.ui.Filter = class {
 			);
 		}
 	}
+
+	hide_nested_set_conditions(df) {
+		if ( !( df.fieldtype == "Link" && frappe.boot.nested_set_doctypes.includes(df.options))) {
+			this.filter_edit_area.find(`.condition option[value="descendants of"]`).hide();
+			this.filter_edit_area.find(`.condition option[value="not descendants of"]`).hide();
+			this.filter_edit_area.find(`.condition option[value="ancestors of"]`).hide();
+			this.filter_edit_area.find(`.condition option[value="not ancestors of"]`).hide();
+		}else {
+			this.filter_edit_area.find(`.condition option[value="descendants of"]`).show();
+			this.filter_edit_area.find(`.condition option[value="not descendants of"]`).show();
+			this.filter_edit_area.find(`.condition option[value="ancestors of"]`).show();
+			this.filter_edit_area.find(`.condition option[value="not ancestors of"]`).show();
+		}
+	}
 };
 
 frappe.ui.filter_utils = {
@@ -315,13 +330,8 @@ frappe.ui.filter_utils = {
 
 		if(condition.indexOf('like', 'not like')!==-1) {
 			// automatically append wildcards
-			if(val) {
-				if(val.slice(0,1) !== "%") {
-					val = "%" + val;
-				}
-				if(val.slice(-1) !== "%") {
-					val = val + "%";
-				}
+			if(val && !(val.startsWith('%') || val.endsWith('%'))) {
+				val = '%' + val + '%';
 			}
 		} else if(in_list(["in", "not in"], condition)) {
 			if(val) {
@@ -374,7 +384,7 @@ frappe.ui.filter_utils = {
 		} else if(['Text','Small Text','Text Editor','Code','Tag','Comments',
 			'Dynamic Link','Read Only','Assign'].indexOf(df.fieldtype)!=-1) {
 			df.fieldtype = 'Data';
-		} else if(df.fieldtype=='Link' && ['=', '!='].indexOf(condition)==-1) {
+		} else if(df.fieldtype=='Link' && ['=', '!=', 'descendants of', 'ancestors of', 'not descendants of', 'not ancestors of'].indexOf(condition)==-1) {
 			df.fieldtype = 'Data';
 		}
 		if(df.fieldtype==="Data" && (df.options || "").toLowerCase()==="email") {

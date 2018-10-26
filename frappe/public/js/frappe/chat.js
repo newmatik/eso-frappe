@@ -1661,6 +1661,7 @@ class extends Component {
 				},
 				frappe._.is_mobile() && {
 					   icon: "octicon octicon-x",
+					   class: "frappe-chat-close",
 					onclick: () => this.set_state({ toggle: false })
 				}
 			], Boolean),
@@ -1760,6 +1761,8 @@ class extends Component {
 
 		if ( props.target )
 			$(props.target).click(() => this.toggle())
+
+		frappe.chat.widget = this
 	}
 
 	toggle  (active) {
@@ -1775,9 +1778,8 @@ class extends Component {
 	}
 
 	on_mounted ( ) {
-		$(document.body).on('click', '.page-container, .frappe-chat-popper', ({ currentTarget }) => {
-			if ( $(currentTarget).is('.page-container') )
-				this.toggle(false)
+		$(document.body).on('click', '.page-container, .frappe-chat-close', ({ currentTarget }) => {
+			this.toggle(false)
 		})
 	}
 
@@ -2655,7 +2657,7 @@ frappe.chat.render = (render = true, force = false) =>
 	// Avoid re-renders. Once is enough.
 	if ( !frappe.chatter || force ) {
 		frappe.chatter = new frappe.Chat({
-			target: desk ? '.navbar .frappe-chat-toggle' : null
+			target: desk ? '.frappe-chat-toggle' : null
 		})
 
 		if ( render ) {

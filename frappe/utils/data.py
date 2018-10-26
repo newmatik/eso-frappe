@@ -35,8 +35,8 @@ def getdate(string_date=None):
 	elif isinstance(string_date, datetime.date):
 		return string_date
 
-	# dateutil parser does not agree with dates like 0000-00-00
-	if not string_date or string_date=="0000-00-00":
+	# dateutil parser does not agree with dates like 0001-01-01
+	if not string_date or string_date=="0001-01-01":
 		return None
 	return parser.parse(string_date).date()
 
@@ -53,8 +53,8 @@ def get_datetime(datetime_str=None):
 	elif isinstance(datetime_str, datetime.date):
 		return datetime.datetime.combine(datetime_str, datetime.time())
 
-	# dateutil parser does not agree with dates like 0000-00-00
-	if not datetime_str or (datetime_str or "").startswith("0000-00-00"):
+	# dateutil parser does not agree with dates like 0001-01-01
+	if not datetime_str or (datetime_str or "").startswith("0001-01-01"):
 		return None
 
 	try:
@@ -223,7 +223,8 @@ def formatdate(string_date=None, format_string=None):
 
 	date = getdate(string_date)
 	if not format_string:
-		format_string = get_user_format().replace("mm", "MM")
+		format_string = get_user_format()
+	format_string = format_string.replace("mm", "MM")
 	try:
 		formatted_date = babel.dates.format_date(date, format_string, locale=(frappe.local.lang or "").replace("-", "_"))
 	except UnknownLocaleError:
@@ -352,9 +353,22 @@ def remainder(numerator, denominator, precision=2):
 
 	return flt(_remainder, precision);
 
+def safe_div(numerator, denominator, precision=2):
+	"""
+	SafeMath division that returns zero when divided by zero.
+	"""
+	precision = cint(precision)
+
+	if denominator == 0:
+		_res = 0.0
+	else:
+		_res = float(numerator) / denominator
+
+	return flt(_res, precision)
+
 def round_based_on_smallest_currency_fraction(value, currency, precision=2):
 	smallest_currency_fraction_value = flt(frappe.db.get_value("Currency",
-		currency, "smallest_currency_fraction_value"))
+		currency, "smallest_currency_fraction_value", cache=True))
 
 	if smallest_currency_fraction_value:
 		remainder_val = remainder(value, smallest_currency_fraction_value, precision)
@@ -419,7 +433,7 @@ def fmt_money(amount, precision=None, currency=None):
 		if precision > 2:
 			if len(decimals) < 3:
 				if currency:
-					fraction  = frappe.db.get_value("Currency", currency, "fraction_units") or 100
+					fraction  = frappe.db.get_value("Currency", currency, "fraction_units", cache=True) or 100
 					precision = len(cstr(fraction)) - 1
 				else:
 					precision = number_format_precision
@@ -459,7 +473,7 @@ def fmt_money(amount, precision=None, currency=None):
 		amount = minus + amount
 
 	if currency and frappe.defaults.get_global_default("hide_currency_symbol") != "Yes":
-		symbol = frappe.db.get_value("Currency", currency, "symbol") or currency
+		symbol = frappe.db.get_value("Currency", currency, "symbol", cache=True) or currency
 		amount = symbol + " " + amount
 
 	return amount
@@ -504,7 +518,7 @@ def money_in_words(number, main_currency = None, fraction_currency=None):
 	if not main_currency:
 		main_currency = d.get('currency', 'INR')
 	if not fraction_currency:
-		fraction_currency = frappe.db.get_value("Currency", main_currency, "fraction") or _("Cent")
+		fraction_currency = frappe.db.get_value("Currency", main_currency, "fraction", cache=True) or _("Cent")
 
 	number_format = frappe.db.get_value("Currency", main_currency, "number_format", cache=True) or \
 		frappe.db.get_default("number_format") or "#,###.##"
@@ -715,12 +729,16 @@ def get_url(uri=None, full_address=False):
 
 	port = frappe.conf.http_port or frappe.conf.webserver_port
 
-	if host_name and ':' not in host_name and port:
+	if frappe.conf.developer_mode and host_name and not url_contains_port(host_name) and port:
 		host_name = host_name + ':' + str(port)
 
 	url = urljoin(host_name, uri) if uri else host_name
 
 	return url
+
+def url_contains_port(url):
+	parts = url.split(':')
+	return len(parts) > 2
 
 def get_host_name():
 	return get_url().rsplit("//", 1)[-1]
@@ -818,7 +836,8 @@ def get_filter(doctype, f):
 		# if operator is missing
 		f.operator = "="
 
-	valid_operators = ("=", "!=", ">", "<", ">=", "<=", "like", "not like", "in", "not in", "between")
+	valid_operators = ("=", "!=", ">", "<", ">=", "<=", "like", "not like", "in", "not in",
+		"between", "descendants of", "ancestors of", "not descendants of", "not ancestors of")
 	if f.operator.lower() not in valid_operators:
 		frappe.throw(frappe._("Operator must be one of {0}").format(", ".join(valid_operators)))
 
@@ -945,7 +964,8 @@ def md_to_html(markdown_text):
 		'header-ids': None,
 		'highlightjs-lang': None,
 		'html-classes': {
-			'table': 'table table-bordered'
+			'table': 'table table-bordered',
+			'img': 'screenshot'
 		}
 	}
 
@@ -963,3 +983,7 @@ def get_source_value(source, key):
 		return source.get(key)
 	else:
 		return getattr(source, key)
+
+def is_subset(list_a, list_b):
+	'''Returns whether list_a is a subset of list_b'''
+	return len(list(set(list_a) & set(list_b))) == len(list_a)

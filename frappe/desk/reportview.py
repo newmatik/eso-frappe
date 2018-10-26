@@ -11,9 +11,6 @@ from frappe.model.db_query import DatabaseQuery
 from frappe import _
 from six import text_type, string_types, StringIO
 
-# imports - third-party imports
-import pymysql
-
 @frappe.whitelist()
 @frappe.read_only()
 def get():
@@ -215,7 +212,7 @@ def delete_items():
 	"""delete selected items"""
 	import json
 
-	il = json.loads(frappe.form_dict.get('items'))
+	il = sorted(json.loads(frappe.form_dict.get('items')), reverse=True)
 	doctype = frappe.form_dict.get('doctype')
 
 	failed = []
@@ -233,12 +230,13 @@ def delete_items():
 	return failed
 
 @frappe.whitelist()
+@frappe.read_only()
 def get_sidebar_stats(stats, doctype, filters=[]):
-	cat_tags = frappe.db.sql("""select tag.parent as category, tag.tag_name as tag
-		from `tabTag Doc Category` as docCat
-		INNER JOIN  tabTag as tag on tag.parent = docCat.parent
-		where docCat.tagdoc=%s
-		ORDER BY tag.parent asc,tag.idx""",doctype,as_dict=1)
+	cat_tags = frappe.db.sql("""select `tag`.parent as `category`, `tag`.tag_name as `tag`
+		from `tabTag Doc Category` as `docCat`
+		INNER JOIN  `tabTag` as `tag` on `tag`.parent = `docCat`.parent
+		where `docCat`.tagdoc=%s
+		ORDER BY `tag`.parent asc, `tag`.idx""", doctype, as_dict=1)
 
 	return {"defined_cat":cat_tags, "stats":get_stats(stats, doctype, filters)}
 
@@ -253,7 +251,7 @@ def get_stats(stats, doctype, filters=[]):
 
 	try:
 		columns = frappe.db.get_table_columns(doctype)
-	except pymysql.InternalError:
+	except frappe.db.InternalError:
 		# raised when _user_tags column is added on the fly
 		columns = []
 
@@ -272,10 +270,10 @@ def get_stats(stats, doctype, filters=[]):
 			else:
 				stats[tag] = tagcount
 
-		except frappe.SQLError:
+		except frappe.db.SQLError:
 			# does not work for child tables
 			pass
-		except pymysql.InternalError:
+		except frappe.db.InternalError:
 			# raised when _user_tags column is added on the fly
 			pass
 	return stats

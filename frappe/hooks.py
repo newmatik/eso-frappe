@@ -11,8 +11,8 @@ app_color = "orange"
 source_link = "https://github.com/frappe/frappe"
 app_license = "MIT"
 
-develop_version = '11.x.x-develop'
-staging_version = '11.0.0-beta'
+develop_version = '12.x.x-develop'
+staging_version = '11.0.3-beta.14'
 
 app_email = "info@frappe.io"
 
@@ -102,7 +102,8 @@ has_permission = {
 	"Contact": "frappe.contacts.address_and_contact.has_permission",
 	"Address": "frappe.contacts.address_and_contact.has_permission",
 	"Communication": "frappe.core.doctype.communication.communication.has_permission",
-	"Workflow Action": "frappe.workflow.doctype.workflow_action.workflow_action.has_permission"
+	"Workflow Action": "frappe.workflow.doctype.workflow_action.workflow_action.has_permission",
+	"File": "frappe.core.doctype.file.file.has_permission"
 }
 
 has_website_permission = {
@@ -125,7 +126,10 @@ doc_events = {
 			"frappe.desk.notifications.clear_doctype_notifications",
 			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions"
 		],
-		"on_trash": "frappe.desk.notifications.clear_doctype_notifications",
+		"on_trash": [
+			"frappe.desk.notifications.clear_doctype_notifications",
+			"frappe.workflow.doctype.workflow_action.workflow_action.process_workflow_actions"
+		],
 		"on_change": [
 			"frappe.core.doctype.feedback_trigger.feedback_trigger.trigger_feedback_request",
 		]
@@ -154,6 +158,7 @@ scheduler_events = {
 		"frappe.desk.page.backups.backups.delete_downloadable_backups",
 		"frappe.limits.update_space_usage",
 		"frappe.desk.doctype.auto_repeat.auto_repeat.make_auto_repeat_entry",
+		"frappe.deferred_insert.save_to_db"
 	],
 	"daily": [
 		"frappe.email.queue.clear_outbox",
@@ -162,12 +167,12 @@ scheduler_events = {
 		"frappe.desk.doctype.event.event.send_event_digest",
 		"frappe.sessions.clear_expired_sessions",
 		"frappe.email.doctype.notification.notification.trigger_daily_alerts",
-		"frappe.async.remove_old_task_logs",
+		"frappe.realtime.remove_old_task_logs",
 		"frappe.utils.scheduler.disable_scheduler_on_expiry",
 		"frappe.utils.scheduler.restrict_scheduler_events_if_dormant",
 		"frappe.email.doctype.auto_email_report.auto_email_report.send_daily",
 		"frappe.core.doctype.feedback_request.feedback_request.delete_feedback_request",
-		"frappe.core.doctype.activity_log.activity_log.clear_authentication_logs"
+		"frappe.core.doctype.activity_log.activity_log.clear_authentication_logs",
 	],
 	"daily_long": [
 		"frappe.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_daily",
@@ -175,7 +180,9 @@ scheduler_events = {
 	],
 	"weekly_long": [
 		"frappe.integrations.doctype.dropbox_settings.dropbox_settings.take_backups_weekly",
-		"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_weekly"
+		"frappe.integrations.doctype.s3_backup_settings.s3_backup_settings.take_backups_weekly",
+		"frappe.utils.change_log.check_for_update",
+		"frappe.desk.doctype.route_history.route_history.flush_old_route_records"
 	],
 	"monthly": [
 		"frappe.email.doctype.auto_email_report.auto_email_report.send_monthly"

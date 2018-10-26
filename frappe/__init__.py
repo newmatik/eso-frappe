@@ -17,7 +17,7 @@ from faker import Faker
 from .exceptions import *
 from .utils.jinja import (get_jenv, get_template, render_template, get_email_from_template, get_jloader)
 
-__version__ = '10.1.45'
+__version__ = '10.1.56'
 __title__ = "Frappe Framework"
 
 local = Local()
@@ -154,6 +154,7 @@ def init(site, sites_path=None, new_site=False):
 	local.jenv = None
 	local.jloader =None
 	local.cache = {}
+	local.document_cache = {}
 	local.meta_cache = {}
 	local.form_dict = _dict()
 	local.session = _dict()
@@ -167,17 +168,17 @@ def connect(site=None, db_name=None):
 
 	:param site: If site is given, calls `frappe.init`.
 	:param db_name: Optional. Will use from `site_config.json`."""
-	from frappe.database import Database
+	from frappe.database import get_db
 	if site:
 		init(site)
 
-	local.db = Database(user=db_name or local.conf.db_name)
+	local.db = get_db(user=db_name or local.conf.db_name)
 	set_user("Administrator")
 
 def connect_read_only():
-	from frappe.database import Database
+	from frappe.database import get_db
 
-	local.read_only_db = Database(local.conf.slave_host, local.conf.slave_db_name,
+	local.read_only_db = get_db(local.conf.slave_host, local.conf.slave_db_name,
 		local.conf.slave_db_password)
 
 	# swap db connections
@@ -258,7 +259,7 @@ def errprint(msg):
 	:param msg: Message."""
 	msg = as_unicode(msg)
 	if not request or (not "cmd" in local.form_dict) or conf.developer_mode:
-		print(msg.encode('utf-8'))
+		print(msg)
 
 	error_log.append(msg)
 
@@ -338,7 +339,7 @@ def throw(msg, exc=ValidationError, title=None):
 	msgprint(msg, raise_exception=exc, title=title, indicator='red')
 
 def emit_js(js, user=False, **kwargs):
-	from frappe.async import publish_realtime
+	from frappe.realtime import publish_realtime
 	if user == False:
 		user = session.user
 	publish_realtime('eval_js', js, user=user, **kwargs)
@@ -588,7 +589,7 @@ def has_website_permission(doc=None, ptype='read', user=None, verbose=False, doc
 
 		# check permission in controller
 		if hasattr(doc, 'has_website_permission'):
-			return doc.has_website_permission(doc, ptype, user, verbose=verbose)
+			return doc.has_website_permission(ptype, user, verbose=verbose)
 
 	hooks = (get_hooks("has_website_permission") or {}).get(doctype, [])
 	if hooks:
@@ -646,6 +647,48 @@ def set_value(doctype, docname, fieldname, value=None):
 	import frappe.client
 	return frappe.client.set_value(doctype, docname, fieldname, value)
 
+def get_cached_doc(*args, **kwargs):
+	if args and len(args) > 1 and isinstance(args[1], text_type):
+		key = get_document_cache_key(args[0], args[1])
+		# local cache
+		doc = local.document_cache.get(key)
+		if doc:
+			return doc
+
+		# redis cache
+		doc = cache().hget('document_cache', key)
+		if doc:
+			doc = get_doc(doc)
+			local.document_cache[key] = doc
+			return doc
+
+	# database
+	doc = get_doc(*args, **kwargs)
+
+	return doc
+
+def get_document_cache_key(doctype, name):
+	return '{0}::{1}'.format(doctype, name)
+
+def clear_document_cache(doctype, name):
+	cache().hdel("last_modified", doctype)
+	key = get_document_cache_key(doctype, name)
+	if key in local.document_cache:
+		del local.document_cache[key]
+	cache().hdel('document_cache', key)
+
+def get_cached_value(doctype, name, fieldname, as_dict=False):
+	doc = get_cached_doc(doctype, name)
+	if isinstance(fieldname, string_types):
+		if as_dict:
+			throw('Cannot make dict for single fieldname')
+		return doc.get(fieldname)
+
+	values = [doc.get(f) for f in fieldname]
+	if as_dict:
+		return _dict(zip(fieldname, values))
+	return values
+
 def get_doc(*args, **kwargs):
 	"""Return a `frappe.model.document.Document` object of the given type and name.
 
@@ -663,7 +706,15 @@ def get_doc(*args, **kwargs):
 
 	"""
 	import frappe.model.document
-	return frappe.model.document.get_doc(*args, **kwargs)
+	doc = frappe.model.document.get_doc(*args, **kwargs)
+
+	# set in cache
+	if args and len(args) > 1:
+		key = get_document_cache_key(args[0], args[1])
+		local.document_cache[key] = doc
+		cache().hset('document_cache', key, doc.as_dict())
+
+	return doc
 
 def get_last_doc(doctype):
 	"""Get last created document of this type."""
@@ -1325,8 +1376,8 @@ def publish_progress(*args, **kwargs):
 	:param doctype: Optional, for DocType
 	:param name: Optional, for Document name
 	"""
-	import frappe.async
-	return frappe.async.publish_progress(*args, **kwargs)
+	import frappe.realtime
+	return frappe.realtime.publish_progress(*args, **kwargs)
 
 def publish_realtime(*args, **kwargs):
 	"""Publish real-time updates
@@ -1339,9 +1390,9 @@ def publish_realtime(*args, **kwargs):
 	:param docname: Transmit to doctype, docname
 	:param after_commit: (default False) will emit after current transaction is committed
 	"""
-	import frappe.async
+	import frappe.realtime
 
-	return frappe.async.publish_realtime(*args, **kwargs)
+	return frappe.realtime.publish_realtime(*args, **kwargs)
 
 def local_cache(namespace, key, generator, regenerate_if_none=False):
 	"""A key value store for caching within a request
@@ -1371,7 +1422,7 @@ def enqueue(*args, **kwargs):
 		:param queue: (optional) should be either long, default or short
 		:param timeout: (optional) should be set according to the functions
 		:param event: this is passed to enable clearing of jobs from queues
-		:param async: (optional) if async=False, the method is executed immediately, else via a worker
+		:param is_async: (optional) if is_async=False, the method is executed immediately, else via a worker
 		:param job_name: (optional) can be used to name an enqueue call, which can be used to prevent duplicate calls
 		:param kwargs: keyword arguments to be passed to the method
 	'''

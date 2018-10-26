@@ -1,4 +1,4 @@
-import WebForm from './webform';
+import WebForm from './web_form_class';
 import make_datatable from './grid_list';
 
 frappe.ready(function() {
@@ -53,7 +53,6 @@ frappe.ready(function() {
 
 	// submit
 	$(".btn-form-submit").on("click", function() {
-		let data = frappe.web_form.get_values();
 		save();
 		return false;
 	});
@@ -118,11 +117,11 @@ frappe.ready(function() {
 			callback: function(data) {
 				if(!data.exc) {
 					frappe.doc_name = data.message.name;
-					if(!frappe.login_required) {
+					if(!frappe.login_required || frappe.route_to_success_link) {
 						show_success_message();
 					}
 
-					if(frappe.is_new && frappe.login_required) {
+					if(frappe.is_new && frappe.login_required && !frappe.route_to_success_link) {
 						// reload page (with ID)
 						window.location.href = window.location.pathname + "?name=" + frappe.doc_name;
 					}
