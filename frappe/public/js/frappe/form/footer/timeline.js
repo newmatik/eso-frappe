@@ -728,7 +728,7 @@ frappe.ui.form.Timeline = class Timeline {
 
 	get_names_for_mentions() {
 		var valid_users = Object.keys(frappe.boot.user_info)
-			.filter(user => !["Administrator", "Guest"].includes(user));
+			.filter(user => !["Administrator", "Guest"].includes(user) && (user.includes('@eso-electronic') || user.includes('@newmatik')));
 
 		return valid_users.map(user => frappe.boot.user_info[user].name);
 	}
