@@ -83,4 +83,4 @@ class MariaDBTable(DBTable):
 				frappe.throw(_("{0} field cannot be set as unique in {1}, as there are non-unique existing values".format(
 					fieldname, self.table_name)))
 			else:
-				raise e
+				pass
