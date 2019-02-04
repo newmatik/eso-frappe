@@ -247,7 +247,8 @@
 
 		"public/js/frappe/chat.js",
 
-		"public/js/frappe/social/social_factory.js"
+		"public/js/frappe/social/social_factory.js",
+		"public/js/frappe/eso/eso_factory.js"
 	],
 	"css/module.min.css": [
 		"public/less/module.less"
@@ -377,6 +378,9 @@
 	],
 	"frappe/css/email.css": [
 		"public/less/email.less"
+	],
+	"js/eso.min.js": [
+		"public/js/frappe/eso/eso_home.js"
 	],
 	"js/social.min.js": [
 		"public/js/frappe/social/social_home.js"
