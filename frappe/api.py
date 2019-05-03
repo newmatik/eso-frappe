@@ -40,7 +40,7 @@ def handle():
 
     validate_oauth()
     validate_auth_via_api_keys()
-    validate_jwt()
+    validate_jwt(frappe.get_request_header("Authorization", None))
 
     parts = frappe.request.path[1:].split("/", 3)
     call = doctype = name = None
@@ -185,14 +185,12 @@ def validate_auth_via_api_keys():
         raise e
 
 
-def validate_jwt():
+def validate_jwt(jwt_token):
     """
         Next JWT authentication using api key and api secret
     """
     import jwt
     from newmatik.next.helpers import get_jwt_config
-
-    jwt_token = frappe.get_request_header("Authorization", None)
 
     if jwt_token and not any(x in jwt_token for x in ['token', 'Basic', 'bearer']):
         jwt_config = get_jwt_config()

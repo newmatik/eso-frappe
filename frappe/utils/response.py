@@ -154,6 +154,22 @@ def download_backup(path):
 
 def download_private_file(path):
 	"""Checks permissions and sends back private file"""
+
+	import jwt
+	from frappe.api import validate_jwt
+	from six.moves.urllib.parse import parse_qs
+
+	query_string = frappe.local.request.query_string
+	query = parse_qs(query_string)
+	
+	if query:
+		if query['t']:
+			try:
+				validate_jwt(query['t'][0])
+				return send_private_file(path.split("/private", 1)[1])
+			except jwt.ExpiredSignatureError as e:
+				raise Forbidden(_("You don't have permission to access this file"))
+
 	try:
 		_file = frappe.get_doc("File", {"file_url": path})
 		_file.is_downloadable()
