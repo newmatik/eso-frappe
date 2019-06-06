@@ -231,7 +231,20 @@ frappe.ready(function() {
 	login.bind_events();
 
 	if (!window.location.hash) {
-		window.location.hash = "#login";
+		//If logged in, redirect to the desk
+		if (frappe.get_cookie("sid") && frappe.get_cookie("sid") !== "Guest") {
+			if (!window.location.pathname || window.location.pathname==="/") {
+				if (frappe.get_cookie("system_user")==="yes") {
+					window.location.href = "/desk";
+				}
+				else {
+					window.location.href = "/me";
+				}
+			}
+		}
+		else {
+			window.location.hash = "#login";
+		}
 	} else {
 		$(window).trigger("hashchange");
 	}
