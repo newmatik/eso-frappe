@@ -79,7 +79,19 @@
 			</div>
 		</div>
 		<div class="file-preview-area" v-show="files.length && !show_file_browser && !show_web_link">
-			<div class="file-preview-container">
+			<div class="margin-bottom" v-if="!upload_complete">
+				<label v-if="!private_only">
+					<input type="checkbox"
+						:checked="private_only"
+						class="input-with-feedback"
+						@change="e => toggle_all_private(e.target.checked)"
+					>
+					<span class="text-medium" style="font-weight: normal;">
+						{{ __('Make all attachments private') }}
+					</span>
+				</label>
+			</div>
+			<div class="flex flex-wrap">
 				<FilePreview
 					v-for="(file, i) in files"
 					:key="file.name"
@@ -169,6 +181,9 @@ export default {
 		},
 		upload_notes: {
 			default: null // "Images or video, upto 2MB"
+		},
+		private_only: {
+			default: true
 		}
 	},
 	components: {
@@ -258,7 +273,6 @@ export default {
 			let files = Array.from(file_array)
 				.filter(this.check_restrictions)
 				.map(file => {
-					let is_image = file.type.startsWith('image');
 					return {
 						file_obj: file,
 						name: file.name,
@@ -267,7 +281,7 @@ export default {
 						total: 0,
 						failed: false,
 						uploading: false,
-						private: !this.make_attachments_public,
+						private: this.private_only
 					}
 				});
 			this.files = this.files.concat(files);
