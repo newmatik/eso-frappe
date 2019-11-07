@@ -172,11 +172,20 @@
 				{{ __("Drop files here") }}
 			</div>
 		</div>
-		<div
-			class="file-preview-area"
-			v-show="files.length && !show_file_browser && !show_web_link"
-		>
-			<div class="file-preview-container" v-if="!show_image_cropper">
+		<div class="file-preview-area" v-show="files.length && !show_file_browser && !show_web_link">
+			<div class="margin-bottom" v-if="!upload_complete">
+				<label v-if="!private_only">
+					<input type="checkbox"
+						:checked="private_only"
+						class="input-with-feedback"
+						@change="e => toggle_all_private(e.target.checked)"
+					>
+					<span class="text-medium" style="font-weight: normal;">
+						{{ __('Make all attachments private') }}
+					</span>
+				</label>
+			</div>
+			<div class="flex flex-wrap">
 				<FilePreview
 					v-for="(file, i) in files"
 					:key="file.name"
@@ -217,218 +226,167 @@
 	</div>
 </template>
 
-<script setup>
-import { computed, ref, watch } from "vue";
-import FilePreview from "./FilePreview.vue";
-import FileBrowser from "./FileBrowser.vue";
-import WebLink from "./WebLink.vue";
-import GoogleDrivePicker from "../../integrations/google_drive_picker";
-import ImageCropper from "./ImageCropper.vue";
+<script>
+import FilePreview from './FilePreview.vue';
+import FileBrowser from './FileBrowser.vue';
+import WebLink from './WebLink.vue';
+import GoogleDrivePicker from '../../integrations/google_drive_picker';
 
-// props
-const props = defineProps({
-	show_upload_button: {
-		default: true,
-	},
-	disable_file_browser: {
-		default: false,
-	},
-	allow_multiple: {
-		default: true,
-	},
-	as_dataurl: {
-		default: false,
-	},
-	doctype: {
-		default: null,
-	},
-	docname: {
-		default: null,
-	},
-	fieldname: {
-		default: null,
-	},
-	folder: {
-		default: "Home",
-	},
-	method: {
-		default: null,
-	},
-	on_success: {
-		default: null,
-	},
-	make_attachments_public: {
-		default: null,
-	},
-	restrictions: {
-		default: () => ({
-			max_file_size: null, // 2048 -> 2KB
-			max_number_of_files: null,
-			allowed_file_types: [], // ['image/*', 'video/*', '.jpg', '.gif', '.pdf'],
-			crop_image_aspect_ratio: null, // 1, 16 / 9, 4 / 3, NaN (free)
-		}),
-	},
-	attach_doc_image: {
-		default: false,
-	},
-	upload_notes: {
-		default: null, // "Images or video, upto 2MB"
-	},
-});
-
-// variables
-let files = ref([]);
-let file_input = ref(null);
-let file_browser = ref(null);
-let web_link = ref(null);
-let is_dragging = ref(false);
-let currently_uploading = ref(-1);
-let show_file_browser = ref(false);
-let show_web_link = ref(false);
-let show_image_cropper = ref(false);
-let crop_image_with_index = ref(-1);
-let trigger_upload = ref(false);
-let close_dialog = ref(false);
-let hide_dialog_footer = ref(false);
-let allow_take_photo = ref(false);
-let allow_web_link = ref(true);
-let google_drive_settings = ref({
-	enabled: false,
-});
-let wrapper_ready = ref(false);
-
-// created
-allow_take_photo.value = window.navigator.mediaDevices;
-if (frappe.user_id !== "Guest") {
-	frappe.call({
-		// method only available after login
-		method: "frappe.integrations.doctype.google_settings.google_settings.get_file_picker_settings",
-		callback: (resp) => {
-			if (!resp.exc) {
-				google_drive_settings.value = resp.message;
-			}
+export default {
+	name: 'FileUploader',
+	props: {
+		show_upload_button: {
+			default: true
 		},
-	});
-}
-if (props.restrictions.max_file_size == null) {
-	frappe.call("frappe.core.api.file.get_max_file_size").then((res) => {
-		props.restrictions.max_file_size = Number(res.message);
-	});
-}
-if (props.restrictions.max_number_of_files == null && props.doctype) {
-	props.restrictions.max_number_of_files = frappe.get_meta(props.doctype)?.max_attachments;
-}
-
-// methods
-function dragover() {
-	is_dragging.value = true;
-}
-function dragleave() {
-	is_dragging.value = false;
-}
-function dropfiles(e) {
-	is_dragging.value = false;
-	add_files(e.dataTransfer.files);
-}
-function browse_files() {
-	file_input.value.click();
-}
-function on_file_input(e) {
-	add_files(file_input.value.files);
-}
-function remove_file(file) {
-	files.value = files.value.filter((f) => f !== file);
-}
-function toggle_image_cropper(index) {
-	crop_image_with_index.value = show_image_cropper.value ? -1 : index;
-	hide_dialog_footer.value = !show_image_cropper.value;
-	show_image_cropper.value = !show_image_cropper.value;
-}
-function toggle_all_private() {
-	let flag;
-	let private_values = files.value.filter((file) => file.private);
-	if (private_values.length < files.value.length) {
-		// there are some private and some public
-		// set all to private
-		flag = true;
-	} else {
-		// all are private, set all to public
-		flag = false;
-	}
-	files.value = files.value.map((file) => {
-		file.private = flag;
-		return file;
-	});
-}
-function show_max_files_number_warning(file) {
-	console.warn(
-		`File skipped because it exceeds the allowed specified limit of ${max_number_of_files} uploads`,
-		file
-	);
-	if (props.doctype) {
-		MSG = __('File "{0}" was skipped because only {1} uploads are allowed for DocType "{2}"', [
-			file.name,
-			max_number_of_files,
-			props.doctype,
-		]);
-	} else {
-		MSG = __('File "{0}" was skipped because only {1} uploads are allowed', [
-			file.name,
-			max_number_of_files,
-		]);
-	}
-	frappe.show_alert({
-		message: MSG,
-		indicator: "orange",
-	});
-}
-function add_files(file_array) {
-	let _files = Array.from(file_array)
-		.filter(check_restrictions)
-		.map((file) => {
-			let is_image = file.type.startsWith("image");
-			let size_kb = file.size / 1024;
-			return {
-				file_obj: file,
-				cropper_file: file,
-				crop_box_data: null,
-				optimize: size_kb > 200 && is_image && !file.type.includes("svg"),
-				name: file.name,
-				doc: null,
-				progress: 0,
-				total: 0,
-				failed: false,
-				request_succeeded: false,
-				error_message: null,
-				uploading: false,
-				private: !props.make_attachments_public,
-			};
-		});
-
-	// pop extra files as per FileUploader.restrictions.max_number_of_files
-	max_number_of_files = props.restrictions.max_number_of_files;
-	if (max_number_of_files && _files.length > max_number_of_files) {
-		_files.slice(max_number_of_files).forEach((file) => {
-			show_max_files_number_warning(file, props.doctype);
-		});
-
-		_files = _files.slice(0, max_number_of_files);
-	}
-
-	files.value = files.value.concat(_files);
-	// if only one file is allowed and crop_image_aspect_ratio is set, open cropper immediately
-	if (
-		files.value.length === 1 &&
-		!props.allow_multiple &&
-		props.restrictions.crop_image_aspect_ratio != null
-	) {
-		if (!files.value[0].file_obj.type.includes("svg")) {
-			toggle_image_cropper(0);
+		disable_file_browser: {
+			default: false
+		},
+		allow_multiple: {
+			default: true
+		},
+		as_dataurl: {
+			default: false
+		},
+		doctype: {
+			default: null
+		},
+		docname: {
+			default: null
+		},
+		fieldname: {
+			default: null
+		},
+		folder: {
+			default: 'Home'
+		},
+		method: {
+			default: null
+		},
+		on_success: {
+			default: null
+		},
+		make_attachments_public: {
+			default: null,
+		},
+		restrictions: {
+			default: () => ({
+				max_file_size: null, // 2048 -> 2KB
+				max_number_of_files: null,
+				allowed_file_types: [] // ['image/*', 'video/*', '.jpg', '.gif', '.pdf']
+			})
+		},
+		upload_notes: {
+			default: null // "Images or video, upto 2MB"
+		},
+		private_only: {
+			default: true
 		}
-	}
-}
-function check_restrictions(file) {
-	let { max_file_size, allowed_file_types = [] } = props.restrictions;
+	},
+	components: {
+		FilePreview,
+		FileBrowser,
+		WebLink
+	},
+	data() {
+		return {
+			files: [],
+			is_dragging: false,
+			currently_uploading: -1,
+			show_file_browser: false,
+			show_web_link: false,
+			close_dialog: false,
+			allow_take_photo: false,
+			google_drive_settings: {
+				enabled: false
+			}
+		}
+	},
+	created() {
+		this.allow_take_photo = window.navigator.mediaDevices;
+		if (frappe.user_id !== "Guest") {
+			frappe.call({
+				// method only available after login
+				method: "frappe.integrations.doctype.google_settings.google_settings.get_file_picker_settings",
+				callback: (resp) => {
+					if (!resp.exc) {
+						this.google_drive_settings = resp.message;
+					}
+				}
+			});
+		}
+	},
+	watch: {
+		files(newvalue, oldvalue) {
+			if (!this.allow_multiple && newvalue.length > 1) {
+				this.files = [newvalue[newvalue.length - 1]];
+			}
+		}
+	},
+	computed: {
+		upload_complete() {
+			return this.files.length > 0
+				&& this.files.every(
+					file => file.total !== 0 && file.progress === file.total);
+		}
+	},
+	methods: {
+		dragover() {
+			this.is_dragging = true;
+		},
+		dragleave() {
+			this.is_dragging = false;
+		},
+		dropfiles(e) {
+			this.is_dragging = false;
+			this.add_files(e.dataTransfer.files);
+		},
+		browse_files() {
+			this.$refs.file_input.click();
+		},
+		on_file_input(e) {
+			this.add_files(this.$refs.file_input.files);
+		},
+		remove_file(file) {
+			this.files = this.files.filter(f => f !== file);
+		},
+		toggle_all_private() {
+			let flag;
+			let private_values = this.files.filter(file => file.private);
+			if (private_values.length < this.files.length) {
+				// there are some private and some public
+				// set all to private
+				flag = true;
+			} else {
+				// all are private, set all to public
+				flag = false;
+			}
+			this.files = this.files.map(file => {
+				file.private = flag;
+				return file;
+			});
+		},
+		add_files(file_array) {
+			let files = Array.from(file_array)
+				.filter(this.check_restrictions)
+				.map(file => {
+					return {
+						file_obj: file,
+						name: file.name,
+						doc: null,
+						progress: 0,
+						total: 0,
+						failed: false,
+						uploading: false,
+						private: this.private_only
+					}
+				});
+			this.files = this.files.concat(files);
+		},
+		check_restrictions(file) {
+			let { max_file_size, allowed_file_types } = this.restrictions;
+
+			let mime_type = file.type;
+			let extension = '.' + file.name.split('.').pop();
 
 	let is_correct_type = true;
 	let valid_file_size = true;
