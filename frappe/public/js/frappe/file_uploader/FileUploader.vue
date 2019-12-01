@@ -293,6 +293,9 @@ const props = defineProps({
 	upload_notes: {
 		default: null, // "Images or video, upto 2MB"
 	},
+    private_only: {
+			default: true
+    },
 	allow_web_link: {
 		default: true,
 	},
@@ -441,7 +444,7 @@ function add_files(file_array) {
 				request_succeeded: false,
 				error_message: null,
 				uploading: false,
-				private: !props.make_attachments_public || !frappe.utils.can_upload_public_files(),
+				private: this.private_only
 			};
 		});
 
