@@ -110,8 +110,10 @@ def application(request: Request):
 			frappe.handler.handle()
 			response = frappe.utils.response.build_response("json")
 
-		elif request.path.startswith("/api/"):
-			response = frappe.api.handle(request)
+		elif frappe.request.path.startswith("/api/"):
+			if frappe.local.form_dict.data is None:
+				frappe.local.form_dict.data = request.get_data()
+			response = frappe.api.handle()
 
 		elif request.path.startswith("/backups"):
 			response = frappe.utils.response.download_backup(request.path)
