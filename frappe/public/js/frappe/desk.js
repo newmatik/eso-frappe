@@ -59,7 +59,7 @@ frappe.Application = Class.extend({
 		this.set_rtl();
 		// Newmatik Specific
 		// If access to only one module, hard redirect to that module
-		if(frappe.boot.allowed_modules.length == 1) {
+		if(frappe.boot.allowed_modules.length == 1 && !window.location.hash) {
 			window.location.hash = 'modules/'+frappe.boot.allowed_modules[0].module_name
 		}
 		if(frappe.boot) {
