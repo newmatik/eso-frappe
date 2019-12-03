@@ -540,24 +540,17 @@ def get_contacts(email_strings: list[str], auto_create_contact=False) -> list[st
 		email = get_email_without_link(email)
 		contact_name = get_contact_name(email)
 
-		if not contact_name and email and auto_create_contact:
-			email_parts = email.split("@")
-			first_name = frappe.unscrub(email_parts[0])
+		if not contact_name:
+			contact = frappe.get_doc({
+				"doctype": "Contact",
+				"first_name": frappe.unscrub(email.split("@")[0]),
+				"gender": frappe.get_value('User', {'email':email}, 'gender')
+			})
+			contact.add_email(email_id=email, is_primary=True)
+			contact.insert(ignore_permissions=True)
+			contact_name = contact.name
 
-			try:
-				contact_name = f"{first_name}-{email_parts[1]}" if first_name == "Contact" else first_name
-				contact = frappe.get_doc(
-					{"doctype": "Contact", "first_name": contact_name, "name": contact_name}
-				)
-				contact.add_email(email_id=email, is_primary=True)
-				contact.insert(ignore_permissions=True)
-				contact_name = contact.name
-			except Exception:
-				contact_name = None
-				contact.log_error("Unable to add contact")
-
-		if contact_name:
-			contacts.append(contact_name)
+		contacts.append(contact_name)
 
 	return contacts
 
