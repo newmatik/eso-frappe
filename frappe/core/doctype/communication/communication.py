@@ -355,7 +355,7 @@ def get_contacts(email_strings):
 			contact = frappe.get_doc({
 				"doctype": "Contact",
 				"first_name": frappe.unscrub(email.split("@")[0]),
-				"gender": frappe.get_value('User', {'email':email}, 'gender')
+				"gender": frappe.get_value('User', {'email':email}, 'gender') or 'Other'
 			})
 			contact.add_email(email_id=email, is_primary=True)
 			contact.insert(ignore_permissions=True)
