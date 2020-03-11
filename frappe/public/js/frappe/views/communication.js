@@ -384,19 +384,18 @@ frappe.views.CommunicationComposer = class {
 	setup_email_template() {
 		const me = this;
 
-		const fields = this.dialog.fields_dict;
-		const clear_and_add_template = $(fields.clear_and_add_template.wrapper);
+		this.dialog.fields_dict["email_template"].df.onchange = () => {
+			var email_template = me.dialog.fields_dict.email_template.get_value();
 
-		function add_template() {
-			const email_template = me.dialog.fields_dict.email_template.get_value();
-			if (!email_template) return;
-
-			function prepend_reply(reply) {
-				const content_field = me.dialog.fields_dict.content;
-				const subject_field = me.dialog.fields_dict.subject;
-
+			var prepend_reply = function(reply) {
+				if(me.reply_added===email_template) {
+					return;
+				}
+				var content_field = me.dialog.fields_dict.content;
+				var subject_field = me.dialog.fields_dict.subject;
 				content_field.set_value(reply.message);
 				subject_field.set_value(reply.subject);
+				me.reply_added = email_template;
 			}
 
 			frappe.call({
