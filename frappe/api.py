@@ -324,24 +324,21 @@ def validate_auth_via_api_keys():
 
 
 def validate_jwt(jwt_token):
-    """
-        Next JWT authentication using api key and api secret
-    """
-    import jwt
-    from newmatik.next.helpers import get_jwt_config
+	"""
+		Next JWT authentication using api key and api secret
+	"""
+	import jwt
+	from newmatik.next.helpers import get_jwt_config
 
-    if jwt_token and not any(x in jwt_token for x in ['token', 'Basic', 'bearer']):
-        jwt_config = get_jwt_config()
+	if jwt_token and not any(x in jwt_token for x in ['token', 'Basic', 'bearer']):
+		jwt_config = get_jwt_config()
+		try:
+			payload = jwt.decode(jwt_token, jwt_config['JWT_SECRET'], jwt_config['JWT_ALGORITHM'])
+		except jwt.ExpiredSignatureError as e:
+			raise ExpiredLoginException()
 
-        try:
-            payload = jwt.decode(
-                jwt_token, jwt_config['JWT_SECRET'], jwt_config['JWT_ALGORITHM']
-            )
-        except jwt.ExpiredSignatureError as e:
-    		raise ExpiredLoginException()
-
-        frappe.local.user_id = payload['user_id']
-        validate_api_key_secret(payload['key'], payload['secret'])
+		frappe.local.user_id = payload['user_id']
+		validate_api_key_secret(payload['key'], payload['secret'])
 
 
 def validate_api_key_secret(api_key, api_secret):
