@@ -6,6 +6,7 @@ from __future__ import unicode_literals
 import requests
 import frappe
 import json
+import re
 from frappe import _
 from frappe.model.document import Document
 from frappe.integrations.utils import get_tracking_url
@@ -28,6 +29,8 @@ def get_letmeship_available_services(delivery_to_type, pickup_address,
 	api_password = frappe.db.get_single_value('LetMeShip','api_password')
 	if not enabled or not api_id or not api_password:
 		return []
+	
+	set_letmeship_specific_fields(pickup_contact, delivery_contact)
 
 	# LetMeShip have limit of 30 characters for Company field
 	if len(pickup_address.address_title) > 30:
@@ -151,10 +154,13 @@ def create_letmeship_shipment(pickup_address, delivery_address, shipment_parcel,
 	if not enabled or not api_id or not api_password:
 		return []
 
+	set_letmeship_specific_fields(pickup_contact, delivery_contact)
+
 	if len(pickup_address.address_title) > 30:
 		pickup_address.address_title = pickup_address.address_title[:30]
 	if len(delivery_address.address_title) > 30:
 		delivery_address.address_title = delivery_address.address_title[:30]
+
 	parcel_list = get_parcel_list(json.loads(shipment_parcel), description_of_content)
 	url = 'https://api.test.letmeship.com/v1/shipments'
 	headers = {
@@ -383,3 +389,18 @@ def get_parcel_list(shipment_parcel, description_of_content):
 		formatted_parcel['contentDescription'] = description_of_content
 		parcel_list.append(formatted_parcel)
 	return parcel_list
+
+def set_letmeship_specific_fields(pickup_contact, delivery_contact):
+	pickup_contact.phone_prefix = pickup_contact.phone[:3]
+	pickup_contact.phone = re.sub('[^A-Za-z0-9]+', '', pickup_contact.phone[3:])
+
+	pickup_contact.title = 'MS'
+	if pickup_contact.gender == 'Male':
+		pickup_contact.title = 'MR'
+
+	delivery_contact.phone_prefix = delivery_contact.phone[:3]
+	delivery_contact.phone = re.sub('[^A-Za-z0-9]+', '', delivery_contact.phone[3:])
+
+	delivery_contact.title = 'MS'
+	if delivery_contact.gender == 'Male':
+		delivery_contact.title = 'MR'
