@@ -143,7 +143,7 @@ def upload(rows = None, submit_after_import=None, ignore_encoding_errors=False, 
 								fieldname = column_idx_to_fieldname[(dt, parentfield)][column_idx]
 								fieldtype = column_idx_to_fieldtype[(dt, parentfield)][column_idx]
 
-								if not fieldname or not rows[idx][column_idx]:
+								if not fieldname or rows[idx][column_idx] is None:
 									continue
 
 								d[fieldname] = rows[idx][column_idx]
