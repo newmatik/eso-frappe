@@ -164,14 +164,19 @@ def validate_auth():
 	"""
 	Authenticate and sets user for the request.
 	"""
+
 	authorization_header = frappe.get_request_header("Authorization", str()).split(" ")
+	authorization_type = authorization_header[0].lower()
 
 	if len(authorization_header) == 2:
 		validate_oauth(authorization_header)
 		validate_auth_via_api_keys(authorization_header)
 
-	validate_auth_via_hooks()
+	elif authorization_type == "next":
+		validate_jwt(authorization_header)
 
+	else:
+		validate_auth_via_hooks()
 
 def validate_oauth(authorization_header):
 	"""
@@ -254,6 +259,27 @@ def validate_api_key_secret(api_key, api_secret, frappe_authorization_source=Non
 		frappe.local.form_dict = form_dict
 
 
+def validate_jwt(authorization_header):
+	"""
+		Next JWT authentication using api key and api secret
+	"""
+	import jwt
+	from newmatik.next.helpers import get_jwt_config
+	jwt_config = get_jwt_config()
+	jwt_token = authorization_header[1]
+	try:
+		payload = jwt.decode(
+			jwt_token, jwt_config['JWT_SECRET'], jwt_config['JWT_ALGORITHM']
+		)
+	except jwt.ExpiredSignatureError as e:
+		raise ExpiredLoginException()
+
+	frappe.local.user_id = payload['user_id']
+	validate_api_key_secret(payload['key'], payload['secret'])
+
 def validate_auth_via_hooks():
 	for auth_hook in frappe.get_hooks("auth_hooks", []):
 		frappe.get_attr(auth_hook)()
+
+class ExpiredLoginException(Exception):
+	http_status_code = 401
