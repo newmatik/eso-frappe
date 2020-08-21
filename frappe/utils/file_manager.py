@@ -405,6 +405,9 @@ def extract_images_from_html(doc, content):
 
 		doctype = doc.parenttype if doc.parent else doc.doctype
 		name = doc.parent or doc.name
+		if doc.doctype == "Comment":
+			doctype = doc.reference_doctype
+			name = doc.reference_name
 
 		# TODO fix this
 		file_url = save_file(filename, content, doctype, name, decode=True).get("file_url")
