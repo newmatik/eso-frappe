@@ -811,14 +811,17 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 	from frappe.desk.reportview import get_match_cond
 
 	user_type_condition = "and user_type = 'System User'"
+	mention_filter = ""
 	if filters and filters.get('ignore_user_type'):
 		user_type_condition = ''
-
+	if filters and filters.get('allowed_in_mentions'):
+		mention_filter = "AND allowed_in_mentions = " + str(filters.get('allowed_in_mentions'))
 	txt = "%{}%".format(txt)
 	return frappe.db.sql("""SELECT `name`, CONCAT_WS(' ', first_name, middle_name, last_name)
 		FROM `tabUser`
 		WHERE `enabled`=1
 			{user_type_condition}
+			{mention_filter}
 			AND `docstatus` < 2
 			AND `name` NOT IN ({standard_users})
 			AND ({key} LIKE %(txt)s
@@ -831,6 +834,7 @@ def user_query(doctype, txt, searchfield, start, page_len, filters):
 			NAME asc
 		LIMIT %(page_len)s OFFSET %(start)s""".format(
 			user_type_condition = user_type_condition,
+			mention_filter = mention_filter,
 			standard_users=", ".join([frappe.db.escape(u) for u in STANDARD_USERS]),
 			key=searchfield, mcond=get_match_cond(doctype)),
 			dict(start=start, page_len=page_len, txt=txt))

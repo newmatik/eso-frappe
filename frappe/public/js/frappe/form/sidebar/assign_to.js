@@ -134,7 +134,7 @@ frappe.ui.form.AssignToDialog = Class.extend({
 		var dialog = new frappe.ui.Dialog({
 			title: __('Add to To Do'),
 			fields: [
-				{ fieldtype: 'Link', fieldname: 'assign_to', options: 'User', label: __("Assign To"), reqd: true, filters: { 'user_type': 'System User' }},
+				{ fieldtype: 'Link', fieldname: 'assign_to', options: 'User', label: __("Assign To"), reqd: true, filters: { 'user_type': 'System User', 'allowed_in_mentions': 1 }},
 				{ fieldtype: 'Check', fieldname: 'myself', label: __("Assign to me"), "default": 0 },
 				{ fieldtype: 'Small Text', fieldname: 'description', label: __("Comment") },
 				{ fieldtype: 'Section Break' },
@@ -158,7 +158,6 @@ frappe.ui.form.AssignToDialog = Class.extend({
 		$.extend(me, dialog);
 
 		me.dialog = dialog;
-
 		me.dialog.fields_dict.assign_to.get_query = "frappe.core.doctype.user.user.user_query";
 
 		var myself = me.dialog.get_input("myself").on("click", function() {
