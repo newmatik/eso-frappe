@@ -112,7 +112,14 @@ def application(request: Request):
 
 		elif frappe.request.path.startswith("/api/"):
 			if frappe.local.form_dict.data is None:
-				frappe.local.form_dict.data = request.get_data()
+				if not (frappe.request.path.startswith("/api/method/frappe")
+					or frappe.request.path.startswith("/api/method/newmatik")
+					or frappe.request.path.startswith("/api/method/upload_file")
+					or frappe.request.path.startswith("/api/method/newmatik.next")):
+					data = request.get_data()
+					frappe.local.form_dict.data = data.decode()
+				else:
+					frappe.local.form_dict.data = request.get_data()
 			response = frappe.api.handle()
 
 		elif request.path.startswith("/backups"):
