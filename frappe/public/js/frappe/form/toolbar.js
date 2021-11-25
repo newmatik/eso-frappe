@@ -116,10 +116,13 @@ frappe.ui.form.Toolbar = Class.extend({
 				d.show();
 
 				d.set_primary_action(__("Rename"), function () {
+					d.hide();
 					let args = d.get_values();
 					if (args.title != me.frm.doc[title_field] || args.name != docname) {
 						frappe.call({
 							method: "frappe.model.rename_doc.update_document_title",
+							freeze: true,
+							freeze_message: "Updating related fields...",
 							args: {
 								doctype,
 								docname,
