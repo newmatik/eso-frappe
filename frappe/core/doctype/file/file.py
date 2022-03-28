@@ -815,29 +815,268 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 			frappe.clear_last_message()
 			return False
 
-		if ptype in ["write", "create", "delete"]:
-			return ref_doc.has_permission("write", debug=debug, user=user)
+			if ptype in ["write", "create", "delete"]:
+				has_access = ref_doc.has_permission("write")
+
+				if ptype == "delete" and not has_access:
+					frappe.throw(
+						_(
+							"Cannot delete file as it belongs to {0} {1} for which you do not have permissions"
+						).format(doc.attached_to_doctype, doc.attached_to_name),
+						frappe.PermissionError,
+					)
+			else:
+				has_access = ref_doc.has_permission("read")
+		except frappe.DoesNotExistError:
+			# if parent doc is not created before file is created
+			# we cannot check its permission so we will use file's permission
+			pass
+
+	return has_access
+
+
+def remove_file_by_url(file_url, doctype=None, name=None):
+	if doctype and name:
+		fid = frappe.db.get_value(
+			"File", {"file_url": file_url, "attached_to_doctype": doctype, "attached_to_name": name}
+		)
+	else:
+		fid = frappe.db.get_value("File", {"file_url": file_url})
+
+	if fid:
+		from frappe.utils.file_manager import remove_file
+
+		return remove_file(fid=fid)
+
+
+def get_content_hash(content):
+	if isinstance(content, text_type):
+		content = content.encode()
+	return hashlib.md5(content).hexdigest()  # nosec
+
+
+def get_file_name(fname, optional_suffix):
+	# convert to unicode
+	fname = cstr(fname)
+
+	f = fname.rsplit(".", 1)
+	if len(f) == 1:
+		partial, extn = f[0], ""
+	else:
+		partial, extn = f[0], "." + f[1]
+	return "{partial}{suffix}{extn}".format(partial=partial, extn=extn, suffix=optional_suffix)
+
+
+@frappe.whitelist()
+def download_file(file_url):
+	"""
+	Download file using token and REST API. Valid session or
+	token is required to download private files.
+
+	Method : GET
+	Endpoint : frappe.core.doctype.file.file.download_file
+	URL Params : file_name = /path/to/file relative to site path
+	"""
+	file_doc = frappe.get_doc("File", {"file_url": file_url})
+	file_doc.check_permission("read")
+
+	frappe.local.response.filename = os.path.basename(file_url)
+	frappe.local.response.filecontent = file_doc.get_content()
+	frappe.local.response.type = "download"
+
+
+def extract_images_from_doc(doc, fieldname):
+	content = doc.get(fieldname)
+	content = extract_images_from_html(doc, content)
+	if frappe.flags.has_dataurl:
+		doc.set(fieldname, content)
+
+
+def extract_images_from_html(doc, content, is_private=False):
+	frappe.flags.has_dataurl = False
+
+	def _save_file(match):
+		data = match.group(1).split("data:")[1]
+		headers, content = data.split(",")
+
+		if "filename=" in headers:
+			filename = headers.split("filename=")[-1]
+			filename = safe_decode(filename).split(";")[0]
+
+			# decode filename
+			if not isinstance(filename, text_type):
+				filename = text_type(filename, "utf-8")
 		else:
-			return ref_doc.has_permission("read", debug=debug, user=user)
+			mtype = headers.split(";")[0]
+			filename = get_random_filename(content_type=mtype)
 
-	return False
+		doctype = doc.parenttype if doc.parent else doc.doctype
+		name = doc.parent or doc.name
+
+		doctype = doc.doctype
+		name = doc.name
+		if doc.parent:
+			doctype = doc.parenttype
+			name = doc.parent
+
+		if doc.doctype == "Comment":
+			doctype = doc.reference_doctype
+			name = doc.reference_name
+
+		_file = frappe.get_doc({
+			"doctype": "File",
+			"file_name": filename,
+			"attached_to_doctype": doctype,
+			"attached_to_name": name,
+			"content": content,
+			"decode": True
+		})
+
+		_file.save(ignore_permissions=True)
+
+		file_url = _file.file_url
+		frappe.flags.has_dataurl = True
+
+		return '<img src="{file_url}"'.format(file_url=file_url)
+
+	if content and isinstance(content, string_types):
+		content = re.sub(r'<img[^>]*src\s*=\s*["\'](?=data:)(.*?)["\']', _save_file, content)
+
+	return content
 
 
-def get_permission_query_conditions(user: str | None = None) -> str:
-	user = user or frappe.session.user
-	if user == "Administrator":
-		return ""
+def get_random_filename(content_type=None):
+	extn = None
+	if content_type:
+		extn = mimetypes.guess_extension(content_type)
 
-	if SYSTEM_USER_ROLE not in frappe.get_roles(user):
-		return f""" `tabFile`.`owner` = {frappe.db.escape(user)} """
+	return random_string(7) + (extn or "")
 
-	readable_doctypes = ", ".join(repr(dt) for dt in get_doctypes_with_read())
-	return f"""
-		(`tabFile`.`is_private` = 0)
-		OR (`tabFile`.`attached_to_doctype` IS NULL AND `tabFile`.`owner` = {frappe.db.escape(user)})
-		OR (`tabFile`.`attached_to_doctype` IN ({readable_doctypes}))
+
+@frappe.whitelist()
+def unzip_file(name):
+	"""Unzip the given file and make file records for each of the extracted files"""
+	file_obj = frappe.get_doc("File", name)
+	files = file_obj.unzip()
+	return files
+
+
+@frappe.whitelist()
+def get_attached_images(doctype, names):
+	"""get list of image urls attached in form
+	returns {name: ['image.jpg', 'image.png']}"""
+
+	if isinstance(names, string_types):
+		names = json.loads(names)
+
+	img_urls = frappe.db.get_list(
+		"File",
+		filters={"attached_to_doctype": doctype, "attached_to_name": ("in", names), "is_folder": 0},
+		fields=["file_url", "attached_to_name as docname"],
+	)
+
+	out = frappe._dict()
+	for i in img_urls:
+		out[i.docname] = out.get(i.docname, [])
+		out[i.docname].append(i.file_url)
+
+	return out
+
+
+@frappe.whitelist()
+def get_files_in_folder(folder, start=0, page_length=20):
+	start = cint(start)
+	page_length = cint(page_length)
+
+	attachment_folder = frappe.db.get_value(
+		"File", "Home/Attachments", ["name", "file_name", "file_url", "is_folder", "modified"], as_dict=1
+	)
+
+	files = frappe.db.get_list(
+		"File",
+		{"folder": folder},
+		["name", "file_name", "file_url", "is_folder", "modified"],
+		start=start,
+		page_length=page_length + 1,
+	)
+
+	if folder == "Home" and attachment_folder not in files:
+		files.insert(0, attachment_folder)
+
+	return {"files": files[:page_length], "has_more": len(files) > page_length}
+
+
+@frappe.whitelist()
+def get_files_by_search_text(text):
+	if not text:
+		return []
+
+	text = "%" + cstr(text).lower() + "%"
+	return frappe.db.get_all(
+		"File",
+		fields=["name", "file_name", "file_url", "is_folder", "modified"],
+		filters={"is_folder": False},
+		or_filters={"file_name": ("like", text), "file_url": text, "name": ("like", text)},
+		order_by="modified desc",
+		limit=20,
+	)
+
+
+def update_existing_file_docs(doc):
+	# Update is private and file url of all file docs that point to the same file
+	frappe.db.sql(
+		"""
+		UPDATE `tabFile`
+		SET
+			file_url = %(file_url)s,
+			is_private = %(is_private)s
+		WHERE
+			content_hash = %(content_hash)s
+			and name != %(file_name)s
+	""",
+		dict(
+			file_url=doc.file_url,
+			is_private=doc.is_private,
+			content_hash=doc.content_hash,
+			file_name=doc.name,
+		),
+	)
+
+
+def attach_files_to_document(doc, event):
+	"""Runs on on_update hook of all documents.
+	Goes through every Attach and Attach Image field and attaches
+	the file url to the document if it is not already attached.
 	"""
 
+	attach_fields = doc.meta.get("fields", {"fieldtype": ["in", ["Attach", "Attach Image"]]})
 
-# Note: kept at the end to not cause circular, partial imports & maintain backwards compatibility
-from frappe.core.api.file import *
+	for df in attach_fields:
+		# this method runs in on_update hook of all documents
+		# we dont want the update to fail if file cannot be attached for some reason
+		try:
+			value = doc.get(df.fieldname)
+			if not (value or "").startswith(("/files", "/private/files")):
+				return
+
+			if frappe.db.exists(
+				"File",
+				{
+					"file_url": value,
+					"attached_to_name": doc.name,
+					"attached_to_doctype": doc.doctype,
+					"attached_to_field": df.fieldname,
+				},
+			):
+				return
+
+			frappe.get_doc(
+				doctype="File",
+				file_url=value,
+				attached_to_name=doc.name,
+				attached_to_doctype=doc.doctype,
+				attached_to_field=df.fieldname,
+				folder="Home/Attachments",
+			).insert(ignore_permissions=True)
+		except Exception:
+			frappe.log_error(title=_("Error Attaching File"))
