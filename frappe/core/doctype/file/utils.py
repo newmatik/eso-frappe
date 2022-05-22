@@ -256,24 +256,27 @@ def extract_images_from_html(doc: "Document", content: str, is_private: bool = F
 		else:
 			filename = get_random_filename(content_type=mtype)
 
-		if doc.meta.istable:
+		doctype = doc.parenttype if doc.parent else doc.doctype
+		name = doc.parent or doc.name
+
+		doctype = doc.doctype
+		name = doc.name
+		if doc.parent:
 			doctype = doc.parenttype
 			name = doc.parent
-		else:
-			doctype = doc.doctype
-			name = doc.name
 
-		_file = frappe.get_doc(
-			{
-				"doctype": "File",
-				"file_name": filename,
-				"attached_to_doctype": doctype,
-				"attached_to_name": name,
-				"content": content,
-				"decode": False,
-				"is_private": is_private,
-			}
-		)
+		if doc.doctype == "Comment":
+			doctype = doc.reference_doctype
+			name = doc.reference_name
+
+		_file = frappe.get_doc({
+			"doctype": "File",
+			"file_name": filename,
+			"attached_to_doctype": doctype,
+			"attached_to_name": name,
+			"content": content,
+			"decode": True
+		})
 		_file.save(ignore_permissions=True)
 		file_url = _file.unique_url
 		frappe.flags.has_dataurl = True

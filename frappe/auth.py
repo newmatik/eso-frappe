@@ -149,7 +149,7 @@ class LoginManager:
 
 	def post_login(self, session_end: str | None = None, audit_user: str | None = None):
 		self.run_trigger("on_login")
-		validate_ip_address(self.user)
+		# validate_ip_address(self.user)
 		self.validate_hour()
 		self.get_user_info()
 		self.make_session(session_end=session_end, audit_user=audit_user)
@@ -615,12 +615,17 @@ def validate_auth():
 	Authenticate and sets user for the request.
 	"""
 	authorization_header = frappe.get_request_header("Authorization", "").split(" ")
-
+	authorization_type = authorization_header[0].lower()
 	if len(authorization_header) == 2:
 		validate_oauth(authorization_header)
 		validate_auth_via_api_keys(authorization_header)
 
-	validate_auth_via_hooks()
+	elif authorization_type == "next":
+		validate_jwt(authorization_header)
+
+	else:
+		validate_auth_via_hooks()   
+
 
 	# If login via bearer, basic or keypair didn't work then authentication failed and we
 	# should terminate here.
@@ -633,7 +638,7 @@ def validate_oauth(authorization_header):
 	Authenticate request using OAuth and set session user
 
 	Args:
-	                authorization_header (list of str): The 'Authorization' header containing the prefix and token
+					authorization_header (list of str): The 'Authorization' header containing the prefix and token
 	"""
 
 	from frappe.integrations.oauth2 import get_oauth_server
@@ -673,7 +678,7 @@ def validate_auth_via_api_keys(authorization_header):
 	Authenticate request using API keys and set session user
 
 	Args:
-	                authorization_header (list of str): The 'Authorization' header containing the prefix and token
+					authorization_header (list of str): The 'Authorization' header containing the prefix and token
 	"""
 
 	try:
@@ -722,3 +727,29 @@ def validate_api_key_secret(api_key, api_secret, frappe_authorization_source=Non
 def validate_auth_via_hooks():
 	for auth_hook in frappe.get_hooks("auth_hooks", []):
 		frappe.get_attr(auth_hook)()
+
+
+def validate_jwt(authorization_header):
+	"""
+		Next JWT authentication using api key and api secret
+	"""
+	import jwt
+	from newmatik.next.helpers import get_jwt_config
+	jwt_config = get_jwt_config()
+	jwt_token = authorization_header[1]
+	try:
+		payload = jwt.decode(
+			jwt_token, jwt_config['JWT_SECRET'], jwt_config['JWT_ALGORITHM']
+		)
+	except jwt.ExpiredSignatureError as e:
+		raise ExpiredLoginException()
+
+	frappe.local.user_id = payload['user_id']
+	validate_api_key_secret(payload['key'], payload['secret'])
+
+def validate_auth_via_hooks():
+	for auth_hook in frappe.get_hooks("auth_hooks", []):
+		frappe.get_attr(auth_hook)()
+
+class ExpiredLoginException(Exception):
+	http_status_code = 401
