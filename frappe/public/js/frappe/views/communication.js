@@ -459,7 +459,7 @@ frappe.views.CommunicationComposer = class {
 				const content_field = me.get_content_field();
 				const subject_field = me.dialog.fields_dict.subject;
 
-				let content = content_field.get_value() || "";
+				content_field.set_value(reply.message);
 
 				content_field.set_value(reply.message + content);
 				subject_field.set_value(reply.subject);
