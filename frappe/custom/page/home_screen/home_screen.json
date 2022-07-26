@@ -1,0 +1,20 @@
+{
+ "content": null,
+ "creation": "2017-09-02 21:06:34.934587",
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "",
+ "idx": 0,
+ "modified": "2022-07-25 14:00:41.991875",
+ "modified_by": "Administrator",
+ "module": "Custom",
+ "name": "home-screen",
+ "owner": "Administrator",
+ "page_name": "home-screen",
+ "roles": [],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "system_page": 0,
+ "title": "Home Screen"
+}
