@@ -1189,6 +1189,7 @@ def rename_doc(*args, **kwargs):
 	"""
 	kwargs.pop("ignore_permissions", None)
 	kwargs.pop("cmd", None)
+	kwargs.pop("data", None)
 
 	from frappe.model.rename_doc import rename_doc
 
