@@ -386,7 +386,7 @@ frappe.views.CommunicationComposer = class {
 
 		this.dialog.fields_dict["email_template"].df.onchange = () => {
 			var email_template = me.dialog.fields_dict.email_template.get_value();
-
+			if (!email_template) return;
 			var prepend_reply = function(reply) {
 				if(me.reply_added===email_template) {
 					return;
