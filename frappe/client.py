@@ -78,16 +78,15 @@ def get(doctype, name=None, filters=None, parent=None):
 	if frappe.is_table(doctype):
 		check_parent_permission(parent, doctype)
 
-	if filters and not name:
-		name = frappe.db.get_value(doctype, json.loads(filters))
-		if not name:
-			frappe.throw(_("No document found for given filters"))
+	if name:
+		doc = frappe.get_doc(doctype, name)
+	elif filters or filters == {}:
+		doc = frappe.get_doc(doctype, frappe.parse_json(filters))
+	else:
+		doc = frappe.get_doc(doctype)  # single
 
-	doc = frappe.get_doc(doctype, name)
-	if not doc.has_permission("read"):
-		raise frappe.PermissionError
-
-	return frappe.get_doc(doctype, name).as_dict()
+	doc.check_permission()
+	return doc.as_dict()
 
 
 @frappe.whitelist()
@@ -144,8 +143,8 @@ def get_value(doctype, fieldname, filters=None, as_dict=True, debug=False, paren
 def get_single_value(doctype, field):
 	if not frappe.has_permission(doctype):
 		frappe.throw(_("No permission for {0}").format(_(doctype)), frappe.PermissionError)
-	value = frappe.db.get_single_value(doctype, field)
-	return value
+
+	return frappe.db.get_single_value(doctype, field)
 
 
 @frappe.whitelist(methods=["POST", "PUT"])
@@ -291,24 +290,6 @@ def delete(doctype, name):
 
 
 @frappe.whitelist(methods=["POST", "PUT"])
-def set_default(key, value, parent=None):
-	"""set a user default value"""
-	frappe.db.set_default(key, value, parent or frappe.session.user)
-	frappe.clear_cache(user=frappe.session.user)
-
-
-@frappe.whitelist(methods=["POST", "PUT"])
-def make_width_property_setter(doc):
-	"""Set width Property Setter
-
-	:param doc: Property Setter document with `width` property"""
-	if isinstance(doc, string_types):
-		doc = json.loads(doc)
-	if doc["doctype"] == "Property Setter" and doc["property"] == "width":
-		frappe.get_doc(doc).insert(ignore_permissions=True)
-
-
-@frappe.whitelist(methods=["POST", "PUT"])
 def bulk_update(docs):
 	"""Bulk update documents
 
@@ -436,11 +417,6 @@ def attach_file(
 		doc.save()
 
 	return _file.as_dict()
-
-
-@frappe.whitelist()
-def get_hooks(hook, app_name=None):
-	return frappe.get_hooks(hook, app_name)
 
 
 @frappe.whitelist()

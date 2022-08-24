@@ -192,7 +192,7 @@ class NotificationsView extends BaseNotificationsView {
 		this.get_notifications_list(this.max_length).then(list => {
 			this.dropdown_items = list;
 			this.render_notifications_dropdown();
-			if (this.settings.seen == 0) {
+			if (this.settings.seen == 0 && this.dropdown_items.length > 0) {
 				this.toggle_notification_icon(false);
 			}
 		});
@@ -322,7 +322,7 @@ class NotificationsView extends BaseNotificationsView {
 
 	get_notifications_list(limit) {
 		return frappe.db.get_list('Notification Log', {
-			fields: ['*'],
+			fields: ["*"],
 			limit: limit,
 			order_by: 'creation desc'
 		});
