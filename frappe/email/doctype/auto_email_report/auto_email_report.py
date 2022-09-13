@@ -134,58 +134,44 @@ class AutoEmailReport(Document):
 			)
 
 	def get_report_content(self):
-		"""Returns file in for the report in given format"""
-		report = frappe.get_doc("Report", self.report)
+		'''Returns file in for the report in given format'''
+		report = frappe.get_doc('Report', self.report)
 
 		self.filters = frappe.parse_json(self.filters) if self.filters else {}
 
-		if self.report_type == "Report Builder" and self.data_modified_till:
-			self.filters["modified"] = (">", now_datetime() - timedelta(hours=self.data_modified_till))
+		if self.report_type == 'Report Builder' and self.data_modified_till:
+			self.filters['modified'] = ('>', now_datetime() - timedelta(hours=self.data_modified_till))
 
-		if self.report_type != "Report Builder" and self.dynamic_date_filters_set():
+		if self.report_type != 'Report Builder' and self.dynamic_date_filters_set():
 			self.prepare_dynamic_filters()
 
-		columns, data = report.get_data(
-			limit=self.no_of_rows or 100,
-			user=self.user,
-			filters=self.filters,
-			as_dict=True,
-			ignore_prepared_report=True,
-			are_default_filters=False,
-		)
+		columns, data = report.get_data(limit=self.no_of_rows or 100, user=self.user,
+										filters=self.filters, as_dict=True, ignore_prepared_report=True)
 
 		# add serial numbers
-		columns.insert(0, frappe._dict(fieldname="idx", label="", width="30px"))
+		columns.insert(0, frappe._dict(fieldname='idx', label='', width='30px'))
 		for i in range(len(data)):
-			data[i]["idx"] = i + 1
+			data[i]['idx'] = i + 1
 
 		if len(data) == 0 and self.send_if_data:
 			return None
 
-		if self.format == "HTML":
+		if self.format == 'HTML':
 			columns, data = make_links(columns, data)
-			columns = update_field_types(columns)
+
 			return self.get_html_table(columns, data)
 
-		elif self.format == "XLSX":
-			report_data = frappe._dict()
-			report_data["columns"] = columns
-			report_data["result"] = data
-
-			xlsx_data, column_widths = build_xlsx_data(report_data, [], 1, ignore_visible_idx=True)
-			xlsx_file = make_xlsx(xlsx_data, "Auto Email Report", column_widths=column_widths)
+		elif self.format == 'XLSX':
+			spreadsheet_data = self.get_spreadsheet_data(columns, data)
+			xlsx_file = make_xlsx(spreadsheet_data, "Auto Email Report")
 			return xlsx_file.getvalue()
 
-		elif self.format == "CSV":
-			report_data = frappe._dict()
-			report_data["columns"] = columns
-			report_data["result"] = data
-
-			xlsx_data, column_widths = build_xlsx_data(report_data, [], 1, ignore_visible_idx=True)
-			return to_csv(xlsx_data)
+		elif self.format == 'CSV':
+			spreadsheet_data = self.get_spreadsheet_data(columns, data)
+			return to_csv(spreadsheet_data)
 
 		else:
-			frappe.throw(_("Invalid Output Format"))
+			frappe.throw(_('Invalid Output Format'))
 
 	def get_html_table(self, columns=None, data=None):
 		date_time = global_date_format(now()) + " " + format_time(now())
@@ -204,6 +190,18 @@ class AutoEmailReport(Document):
 				"edit_report_settings": get_link_to_form("Auto Email Report", self.name),
 			},
 		)
+
+	@staticmethod
+	def get_spreadsheet_data(columns, data):
+		out = [[_(df.label) for df in columns], ]
+		for row in data:
+			new_row = []
+			out.append(new_row)
+			for df in columns:
+				if df.fieldname not in row: continue
+				new_row.append(frappe.format(row[df.fieldname], df, row))
+
+		return out
 
 	def get_file_name(self):
 		return "{}.{}".format(self.report.replace(" ", "-").replace("/", "-"), self.format.lower())
