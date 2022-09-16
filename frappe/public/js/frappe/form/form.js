@@ -1803,6 +1803,38 @@ frappe.ui.form.Form = class FrappeForm {
 		return selected;
 	}
 
+
+	set_indicator_formatter_data(fieldname, get_color, get_text) {
+		// get doctype from parent
+		var doctype;
+		if (frappe.meta.docfield_map[this.doctype][fieldname]) {
+			doctype = this.doctype;
+		} else {
+			frappe.meta.get_table_fields(this.doctype).every(function(df) {
+				if (frappe.meta.docfield_map[df.options][fieldname]) {
+					doctype = df.options;
+					return false;
+				} else {
+					return true;
+				}
+			});
+		}
+
+		frappe.meta.docfield_map[doctype][fieldname].formatter =
+			function(value, df, options, doc) {
+				if (value) {
+					return `
+						<span class="indicator ${get_color(doc || {})}"
+							data-name="${value}">
+							${label}
+						</span>
+					`;
+				} else {
+					return '';
+				}
+			};
+	}
+
 	set_indicator_formatter(fieldname, get_color, get_text) {
 		// get doctype from parent
 		var doctype;
