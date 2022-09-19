@@ -1826,7 +1826,7 @@ frappe.ui.form.Form = class FrappeForm {
 					return `
 						<span class="indicator ${get_color(doc || {})}"
 							data-name="${value}">
-							${label}
+							${value}
 						</span>
 					`;
 				} else {
