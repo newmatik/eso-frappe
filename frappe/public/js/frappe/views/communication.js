@@ -36,7 +36,27 @@ frappe.views.CommunicationComposer = class {
 			minimizable: true,
 		});
 
-		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass("to_section");
+		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass('to_section');
+		$(this.dialog.$wrapper.find('div[data-fieldname ="language_filter"]').css({"float":"right", "margin-bottom": "0", "z-index": "1"}))
+		$(this.dialog.$wrapper.find('div[data-fieldname ="language_filter"] .checkbox').css({"margin-bottom": "0", "margin-top": "0" }))
+		$(this.dialog.$wrapper.find('div[data-fieldname ="language_filter"] .checkbox .help-box').remove())
+
+		me.dialog.fields_dict.language_filter.input.onclick = function() {
+			me.dialog_data = me.dialog.get_values();
+			if (me.dialog_data.language_filter == 1) {
+				me.dialog.fields_dict.email_template.get_query = function() {
+					return {
+						filters: {
+							'language': me.dialog_data.language_sel.substring(0,2)
+						}
+					}
+				}
+			} else {
+				me.dialog.fields_dict.email_template.get_query = function() {
+					return;
+				}
+			}
+		}
 
 		this.prepare();
 		this.dialog.show();
@@ -79,17 +99,11 @@ frappe.views.CommunicationComposer = class {
 				label: __("BCC"),
 				fieldtype: "MultiSelect",
 				fieldname: "bcc",
-				default: this.get_default_recipients("bcc"),
 			},
 			{
-				label: __("Schedule Send At"),
-				fieldtype: "Datetime",
-				fieldname: "send_after",
-			},
-			{
-				fieldtype: "Section Break",
-				fieldname: "email_template_section_break",
-				hidden: 1,
+				label: __("Print Language Filter"),
+				fieldtype: "Check",
+				fieldname: "language_filter"
 			},
 			{
 				label: __("Email Template"),
@@ -167,7 +181,6 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "select_attachments",
 			},
 		];
-
 		// add from if user has access to multiple email accounts
 		const email_accounts = frappe.boot.email_accounts.filter((account) => {
 			return (
@@ -201,40 +214,6 @@ frappe.views.CommunicationComposer = class {
 
 		return fields;
 	}
-
-	get_default_recipients(fieldname) {
-		if (this.frm?.events.get_email_recipients) {
-			return (this.frm.events.get_email_recipients(this.frm, fieldname) || []).join(", ");
-		} else {
-			return "";
-		}
-	}
-
-	guess_language() {
-		// when attach print for print format changes try to guess language
-		// if print format has language then set that else boot lang.
-
-		// Print language resolution:
-		// 1. Document's print_language field
-		// 2. print format's default field
-		// 3. user lang
-		// 4. system lang
-		// 3 and 4 are resolved already in boot
-		let document_lang = this.frm?.doc?.language;
-		let print_format = this.dialog.get_value("select_print_format");
-
-		let print_format_lang;
-		if (print_format != "Standard") {
-			print_format_lang = frappe.get_doc(
-				"Print Format",
-				print_format
-			)?.default_print_language;
-		}
-
-		let lang = document_lang || print_format_lang || frappe.boot.lang;
-		this.dialog.set_value("print_language", lang);
-	}
-
 	toggle_more_options(show_options) {
 		show_options = show_options || this.dialog.fields_dict.more_options.df.hidden;
 		this.dialog.set_df_property("more_options", "hidden", !show_options);
