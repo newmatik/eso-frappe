@@ -35,6 +35,26 @@ frappe.views.CommunicationComposer = class {
 		});
 
 		$(this.dialog.$wrapper.find(".form-section").get(0)).addClass('to_section');
+		$(this.dialog.$wrapper.find('div[data-fieldname ="language_filter"]').css({"float":"right", "margin-bottom": "0", "z-index": "1"}))
+		$(this.dialog.$wrapper.find('div[data-fieldname ="language_filter"] .checkbox').css({"margin-bottom": "0", "margin-top": "0" }))
+		$(this.dialog.$wrapper.find('div[data-fieldname ="language_filter"] .checkbox .help-box').remove())
+
+		me.dialog.fields_dict.language_filter.input.onclick = function() {
+			me.dialog_data = me.dialog.get_values();
+			if (me.dialog_data.language_filter == 1) {
+				me.dialog.fields_dict.email_template.get_query = function() {
+					return {
+						filters: {
+							'language': me.dialog_data.language_sel.substring(0,2)
+						}
+					}
+				}
+			} else {
+				me.dialog.fields_dict.email_template.get_query = function() {
+					return;
+				}
+			}
+		}
 
 		this.prepare();
 		this.dialog.show();
@@ -74,6 +94,11 @@ frappe.views.CommunicationComposer = class {
 				label: __("BCC"),
 				fieldtype: "MultiSelect",
 				fieldname: "bcc",
+			},
+			{
+				label: __("Print Language Filter"),
+				fieldtype: "Check",
+				fieldname: "language_filter"
 			},
 			{
 				label: __("Email Template"),
@@ -143,7 +168,6 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "select_attachments"
 			}
 		];
-
 		// add from if user has access to multiple email accounts
 		const email_accounts = frappe.boot.email_accounts.filter(account => {
 			return (
@@ -174,7 +198,6 @@ frappe.views.CommunicationComposer = class {
 
 		return fields;
 	}
-
 	toggle_more_options(show_options) {
 		show_options = show_options || this.dialog.fields_dict.more_options.df.hidden;
 		this.dialog.set_df_property('more_options', 'hidden', !show_options);
