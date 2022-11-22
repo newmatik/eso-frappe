@@ -107,7 +107,8 @@ class MariaDBTable(DBTable):
 				if query_parts:
 					query_body = ", ".join(query_parts)
 					query = "ALTER TABLE `{}` {}".format(self.table_name, query_body)
-					frappe.db.sql(query)
+					if (not "tabTechnical Parameter UOM" in query) and (not "conversion" in query):
+						frappe.db.sql(query)
 
 		except Exception as e:
 			# sanitize
