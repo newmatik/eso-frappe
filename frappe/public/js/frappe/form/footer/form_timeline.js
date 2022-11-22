@@ -5,6 +5,7 @@ import { get_version_timeline_content } from "./version_timeline_content_builder
 
 class FormTimeline extends BaseTimeline {
 
+	
 	make() {
 		super.make();
 		this.setup_timeline_actions();
@@ -20,6 +21,7 @@ class FormTimeline extends BaseTimeline {
 
 	setup_timeline_actions() {
 		this.add_action_button(__('New Email'), () => this.compose_mail(), 'mail', 'btn-secondary-dark');
+		this.add_help_scout_action_button(__('New Help Scout Email'), () => this.compose_help_scout_email());
 		this.setup_new_event_button();
 	}
 
@@ -457,6 +459,515 @@ class FormTimeline extends BaseTimeline {
 		new frappe.views.CommunicationComposer(args);
 	}
 
+	/*****************************/
+	//helpscout to erpnext integration starts here
+	/*****************************/
+	
+	compose_help_scout_email() {
+		const me = this;
+
+		this.dialog = new frappe.ui.Dialog({
+			title: __("New Help Scout Email"),
+			no_submit_on_enter: true,
+			fields: this.get_fields(),
+			primary_action_label: __("Send"),
+			primary_action() {
+				me.send_action();
+				me.dialog.hide();
+			},
+			secondary_action_label: __("Discard"),
+			secondary_action() {
+				me.dialog.hide();
+				me.clear_cache();
+			},
+			size: 'large',
+			minimizable: true
+		});
+		$(this.dialog.$wrapper.find('form').first().css({"display":"flex", "align-items": "center"}))
+		$(this.dialog.$wrapper.find('div[data-fieldname ="recipients"]').css({"flex": "1"}))
+		$(this.dialog.$wrapper.find('div[data-fieldname ="option_toggle_button"]').css({"margin-left": "10px", "margin-bottom": "-24px"}))
+		$(this.dialog.$wrapper.find('button[data-fieldname ="option_toggle_button"]').css({"height": "calc(1.5em + .75rem + 2px)"}))
+		this.prepare();
+		this.dialog.show();
+
+		if (this.frm) {
+			$(document).trigger('form-typing', [this.frm]);
+		}
+	}
+
+	get_fields() {
+		const fields = [
+			{
+				label: __("To"),
+				fieldtype: "Link",
+				options: "User",
+				fieldname: "recipients",
+			},
+			{
+				fieldtype: "Button",
+				label: frappe.utils.icon('down'),
+				fieldname: 'option_toggle_button',
+				click: () => {
+					this.toggle_more_options();
+				}
+			},
+			{
+				fieldtype: "Section Break",
+				hidden: 1,
+				fieldname: "more_options"
+			},
+			{
+				label: __("CC"),
+				fieldtype: "MultiSelect",
+				fieldname: "cc",
+			},
+			{
+				label: __("BCC"),
+				fieldtype: "MultiSelect",
+				fieldname: "bcc",
+			},
+			{ fieldtype: "Section Break" },
+			{
+				label: __("Subject"),
+				fieldtype: "Data",
+				reqd: 1,
+				fieldname: "subject",
+				length: 524288
+			},
+			{
+				label: __("Message"),
+				fieldtype: "Small Text",
+				fieldname: "content",
+				onchange: frappe.utils.debounce(
+					this.save_as_draft.bind(this),
+					300
+				)
+			},
+			{ fieldtype: "Section Break" },
+			{
+				label : "Mail Box",
+				fieldname: "mail_box",
+				fieldtype: "Select",
+				reqd: 1,
+				options: ["Software", "Purchasing","Service"]
+			},
+			{
+				label: __("Attach Document Print"),
+				fieldtype: "Check",
+				fieldname: "attach_document_print"
+			},
+			{
+				label: __("Select Print Format"),
+				fieldtype: "Select",
+				fieldname: "select_print_format"
+			},
+			{ fieldtype: "Column Break" },
+			{
+				label: __("Select Attachments"),
+				fieldtype: "HTML",
+				fieldname: "select_attachments"
+			}
+		];
+		
+		return fields;
+	}
+
+	toggle_more_options(show_options) {
+		show_options = show_options || this.dialog.fields_dict.more_options.df.hidden;
+		this.dialog.set_df_property('more_options', 'hidden', !show_options);
+
+		const label = frappe.utils.icon(show_options ? 'up-line': 'down');
+		this.dialog.get_field('option_toggle_button').set_label(label);
+	}
+
+	prepare() {
+		this.setup_multiselect_queries();
+		this.setup_subject_and_recipients();
+		this.setup_print();
+		this.setup_attach();
+		this.setup_email();
+	}
+
+	setup_add_signature_button() {
+		let has_sender = this.dialog.has_field('sender');
+		this.dialog.set_df_property('add_signature', 'hidden', !has_sender);
+	}
+
+	setup_multiselect_queries() {
+		['recipients', 'cc', 'bcc'].forEach(field => {
+			this.dialog.fields_dict[field].get_data = () => {
+				const data = this.dialog.fields_dict[field].get_value();
+				const txt = data.match(/[^,\s*]*$/)[0] || '';
+
+				frappe.call({
+					method: "frappe.email.get_contact_list",
+					args: {txt},
+					callback: (r) => {
+						this.dialog.fields_dict[field].set_data(r.message);
+					}
+				});
+			};
+		});
+	}
+
+	setup_subject_and_recipients() {
+		this.subject = this.subject || "";
+
+		if (!this.forward && !this.recipients && this.last_email) {
+			this.recipients = this.last_email.sender;
+			this.cc = this.last_email.cc;
+			this.bcc = this.last_email.bcc;
+		}
+
+		if (!this.forward && !this.recipients) {
+			this.recipients = this.frm && this.frm.timeline.get_recipient();
+		}
+
+		if (!this.subject && this.frm) {
+
+			const last = this.frm.timeline.get_last_email();
+
+			if (last) {
+				this.subject = last.subject;
+				if (!this.recipients) {
+					this.recipients = last.sender;
+				}
+
+
+				if (strip(this.subject.toLowerCase().split(":")[0])!="re") {
+					this.subject = __("Re: {0}", [this.subject]);
+				}
+			}
+
+			if (!this.subject) {
+				this.subject = this.frm.doc.name;
+				if (this.frm.meta.subject_field && this.frm.doc[this.frm.meta.subject_field]) {
+					this.subject = this.frm.doc[this.frm.meta.subject_field];
+				} else if (this.frm.meta.title_field && this.frm.doc[this.frm.meta.title_field]) {
+					this.subject = this.frm.doc[this.frm.meta.title_field];
+				}
+			}
+
+			
+			const identifier = `#${this.frm.doc.name}`;
+
+			if (!cstr(this.subject).includes(identifier)) {
+				this.subject = `${this.subject} (${identifier})`;
+			}
+		}
+
+		if (this.frm && !this.recipients) {
+			this.recipients = this.frm.doc[this.frm.email_field];
+		}
+	}
+
+	selected_format() {
+		return (
+			this.dialog.fields_dict.select_print_format.input.value
+			|| this.frm && this.frm.meta.default_print_format
+			|| "Standard"
+		);
+	}
+
+	get_print_format(format) {
+		if (!format) {
+			format = this.selected_format();
+		}
+
+		if (locals["Print Format"] && locals["Print Format"][format]) {
+			return locals["Print Format"][format];
+		} else {
+			return {};
+		}
+	}
+
+	setup_print() {
+		// print formats
+		const fields = this.dialog.fields_dict;
+
+		// toggle print format
+		$(fields.attach_document_print.input).click(function() {
+			$(fields.select_print_format.wrapper).toggle($(this).prop("checked"));
+		});
+
+		// select print format
+		$(fields.select_print_format.wrapper).toggle(false);
+
+		if (this.frm) {
+			const print_formats = frappe.meta.get_print_formats(this.frm.meta.name);
+			$(fields.select_print_format.input)
+				.empty()
+				.add_options(print_formats)
+				.val(print_formats[0]);
+		} else {
+			$(fields.attach_document_print.wrapper).toggle(false);
+		}
+
+	}
+
+	setup_attach() {
+		const fields = this.dialog.fields_dict;
+		const attach = $(fields.select_attachments.wrapper);
+
+		if (!this.attachments) {
+			this.attachments = [];
+		}
+
+		let args = {
+			folder: 'Home/Attachments',
+			on_success: attachment => {
+				this.attachments.push(attachment);
+				this.render_attachment_rows(attachment);
+			}
+		};
+
+		if (this.frm) {
+			args = {
+				doctype: this.frm.doctype,
+				docname: this.frm.docname,
+				folder: 'Home/Attachments',
+				on_success: attachment => {
+					this.frm.attachments.attachment_uploaded(attachment);
+					this.render_attachment_rows(attachment);
+				}
+			};
+		}
+
+		$(`
+			<label class="control-label">
+				${__("Select Attachments")}
+			</label>
+			<div class='attach-list'></div>
+			<p class='add-more-attachments'>
+				<button class='btn btn-xs btn-default'>
+					${frappe.utils.icon('small-add', 'xs')}&nbsp;
+					${__("Add Attachment")}
+				</button>
+			</p>
+		`).appendTo(attach.empty());
+
+		attach
+			.find(".add-more-attachments button")
+			.on('click', () => new frappe.ui.FileUploader(args));
+		this.render_attachment_rows();
+	}
+
+	render_attachment_rows(attachment) {
+		const select_attachments = this.dialog.fields_dict.select_attachments;
+		const attachment_rows = $(select_attachments.wrapper).find(".attach-list");
+		if (attachment) {
+			attachment_rows.append(this.get_attachment_row(attachment, true));
+		} else {
+			let files = [];
+			if (this.attachments && this.attachments.length) {
+				files = files.concat(this.attachments);
+			}
+			if (this.frm) {
+				files = files.concat(this.frm.get_files());
+			}
+
+			if (files.length) {
+				$.each(files, (i, f) => {
+					if (!f.file_name) return;
+					if (!attachment_rows.find(`[data-file-name="${f.name}"]`).length) {
+						f.file_url = frappe.urllib.get_full_url(f.file_url);
+						attachment_rows.append(this.get_attachment_row(f));
+					}
+				});
+			}
+		}
+	}
+
+	get_attachment_row(attachment, checked) {
+		return $(`<p class="checkbox flex">
+			<label class="ellipsis" title="${attachment.file_name}">
+				<input
+					type="checkbox"
+					data-file-name="${attachment.name}"
+					data-tile="${attachment.file_name}"
+					${checked ? 'checked': ''}>
+				</input>
+				<span class="ellipsis">${attachment.file_name}</span>
+			</label>
+			&nbsp;
+			<a href="${attachment.file_url}" target="_blank" class="btn-linkF">
+				${frappe.utils.icon('link-url')}
+			</a>
+		</p>`);
+	}
+
+	setup_email() {
+		// email
+		const fields = this.dialog.fields_dict;
+
+		if (this.attach_document_print) {
+			$(fields.attach_document_print.input).click();
+			$(fields.select_print_format.wrapper).toggle(true);
+		}
+	}
+
+	url_to_base64(url, callback) {
+		var xhr = new XMLHttpRequest();
+		xhr.onload = function() {
+			var reader = new FileReader();
+			reader.onloadend = function() {
+				callback(reader.result);
+			}
+			reader.readAsDataURL(xhr.response);
+		};
+		xhr.open('GET', url);
+		xhr.responseType = 'blob';
+		xhr.send();
+	}
+
+	send_action() {
+		const me = this;
+		const base_url = window.location.origin
+		const btn = me.dialog.get_primary_btn();
+		const form_values = this.get_values();
+		var mailboxID = 0
+		var base64_list = []
+		var url = []
+		var url_base64 = []
+		var email_cc = []
+		var email_bcc = []
+		var mime_type_list = []
+		var docname = this.frm.docname
+		if (!form_values) return;
+
+		const selected_attachments =
+			$.map($(me.dialog.wrapper).find("[data-file-name]:checked"), function (element) {
+				return base_url + "/private/files/" + $(element).attr("data-tile");
+			});
+		
+		const link = frappe.urllib.get_full_url(`/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent(this.frm.doctype)}&name=${encodeURIComponent(this.frm.docname)}&format=${encodeURIComponent(form_values.select_print_format)}&lang=${encodeURIComponent(cur_frm.doc.language)}`)
+
+	    if (cur_dialog.fields_dict.mail_box.value == "Software") {
+	        mailboxID = 278320
+	    } else if (cur_dialog.fields_dict.mail_box.value == "Purchasing") {
+	        mailboxID = 72667
+	    } else {
+	        mailboxID = 39736
+	    }
+
+		var counter = 0
+
+		if (form_values.attach_document_print != 0) {
+			selected_attachments.push(link)
+		}
+		if (selected_attachments.length > 0) {
+
+			selected_attachments.forEach(element => url.push({'url': element}));
+			var attachments_length = selected_attachments.length
+			selected_attachments.forEach(element => this.url_to_base64(element, function(myBase64) {
+				counter += 1
+				base64_list.push(myBase64.split(',')[1].trim())
+				mime_type_list.push(myBase64.substring(myBase64.indexOf(":") + 1, myBase64.indexOf(";base64")))
+				if (counter == attachments_length) {
+					url_base64 = url.map((o, i) => ({url: o.url, data: base64_list[i], mimetype: mime_type_list[i]}))
+
+					frappe.call({
+						method: 'newmatik.api.help_scout.send_email',
+						args: {
+							'subject': form_values.subject,
+							'reciever': form_values.recipients,
+							'mailbox': mailboxID,
+							'text': form_values.content,
+							'printf': docname,
+							'url': url_base64,
+							'cc': form_values.cc,
+							'bcc': form_values.bcc
+								},
+							});
+						}
+					}
+				))
+		} else {
+			frappe.call({
+				method: 'newmatik.api.help_scout.send_email',
+				args: {
+					'subject': cur_dialog.fields_dict.subject.value,
+					'reciever': cur_dialog.fields_dict.recipients.value,
+					'mailbox': mailboxID,
+					'text': form_values.content,
+					'printf': docname,
+					'url': selected_attachments,
+					'cc': form_values.cc,
+					'bcc': form_values.bcc
+						},
+					});
+		}
+	}
+
+	get_values() {
+		const form_values = this.dialog.get_values();
+
+		// cc
+		for (let i = 0, l = this.dialog.fields.length; i < l; i++) {
+			const df = this.dialog.fields[i];
+
+			if (df.is_cc_checkbox) {
+				// concat in cc
+				if (form_values[df.fieldname]) {
+					form_values.cc = ( form_values.cc ? (form_values.cc + ", ") : "" ) + df.fieldname;
+					form_values.bcc = ( form_values.bcc ? (form_values.bcc + ", ") : "" ) + df.fieldname;
+				}
+
+				delete form_values[df.fieldname];
+			}
+		}
+
+		return form_values;
+	}
+
+	save_as_draft() {
+		const separator_element = '<div>---</div>';
+		if (this.dialog && this.frm) {
+			let message = this.dialog.get_value('content');
+			message = message.split(separator_element)[0];
+			localforage.setItem(this.frm.doctype + this.frm.docname, message).catch(e => {
+				if (e) {
+					// silently fail
+					console.log(e); // eslint-disable-line
+					console.warn('[Communication] IndexedDB is full. Cannot save message as draft'); // eslint-disable-line
+				}
+			});
+
+		}
+	}
+
+	clear_cache() {
+		this.delete_saved_draft();
+		this.get_last_edited_communication(true);
+	}
+
+	get_last_edited_communication(clear) {
+		if (!frappe.last_edited_communication[this.doctype]) {
+			frappe.last_edited_communication[this.doctype] = {};
+		}
+
+		if (clear || !frappe.last_edited_communication[this.doctype][this.key]) {
+			frappe.last_edited_communication[this.doctype][this.key] = {};
+		}
+
+		return frappe.last_edited_communication[this.doctype][this.key];
+	}
+
+	delete_saved_draft() {
+		if (this.dialog && this.frm) {
+			localforage.removeItem(this.frm.doctype + this.frm.docname).catch(e => {
+				if (e) {
+					// silently fail
+					console.log(e); // eslint-disable-line
+					console.warn('[Communication] IndexedDB is full. Cannot save message as draft'); // eslint-disable-line
+				}
+			});
+		}
+	}
+	/*****************************/
+	//helpscout to erpnext integration ends here
+	/***************************/
+	
 	get_recipient() {
 		if (this.frm.email_field) {
 			return this.frm.doc[this.frm.email_field];
