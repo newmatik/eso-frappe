@@ -107,8 +107,9 @@ class MariaDBTable(DBTable):
 			for query_parts in [add_column_query, modify_column_query, add_index_query, drop_index_query]:
 				if query_parts:
 					query_body = ", ".join(query_parts)
-					query = f"ALTER TABLE `{self.table_name}` {query_body}"
-					frappe.db.sql_ddl(query)
+					query = "ALTER TABLE `{}` {}".format(self.table_name, query_body)
+					if (not "tabTechnical Parameter UOM" in query) and (not "conversion" in query):
+						frappe.db.sql(query)
 
 		except Exception as e:
 			if query := locals().get("query"):  # this weirdness is to avoid potentially unbounded vars
