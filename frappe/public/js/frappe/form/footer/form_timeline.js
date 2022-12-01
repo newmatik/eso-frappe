@@ -833,6 +833,7 @@ class FormTimeline extends BaseTimeline {
 		var email_bcc = []
 		var mime_type_list = []
 		var docname = this.frm.docname
+		var doctype = this.frm.doctype
 		if (!form_values) return;
 
 		const selected_attachments =
@@ -873,11 +874,18 @@ class FormTimeline extends BaseTimeline {
 							'reciever': form_values.recipients,
 							'mailbox': mailboxID,
 							'text': form_values.content,
+							'doctype': doctype,
+							'docname': docname,
 							'printf': docname,
 							'url': url_base64,
 							'cc': form_values.cc,
 							'bcc': form_values.bcc
 								},
+							callback(r) {
+								if (me.frm) {
+									me.frm.reload_doc();
+								}
+							}
 							});
 						}
 					}
@@ -890,11 +898,18 @@ class FormTimeline extends BaseTimeline {
 					'reciever': cur_dialog.fields_dict.recipients.value,
 					'mailbox': mailboxID,
 					'text': form_values.content,
+					'doctype': doctype,
+					'docname': docname,
 					'printf': docname,
 					'url': selected_attachments,
 					'cc': form_values.cc,
 					'bcc': form_values.bcc
 						},
+					callback(r) {
+						if (me.frm) {
+							me.frm.reload_doc();
+						}
+					}
 					});
 		}
 	}
