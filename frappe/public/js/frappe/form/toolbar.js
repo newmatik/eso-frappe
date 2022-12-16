@@ -29,6 +29,9 @@ frappe.ui.form.Toolbar = class Toolbar {
 				this.print_icon && this.print_icon.removeClass("hide");
 			}
 		}
+
+		// trigger every form with Email menu
+		email_remove_last_comma()
 	}
 	set_title() {
 		let title;
@@ -763,3 +766,39 @@ frappe.ui.form.Toolbar = class Toolbar {
 		dialog.show();
 	}
 };
+
+
+function email_remove_last_comma(){
+	$("div.new-timeline").find("div.action-buttons").find("button.btn-secondary-dark.action-btn").on("click", function(){
+		remove_comma()
+	})
+
+	$('button[data-original-title="Menu"]').next("ul").find("li>a.grey-link.dropdown-item").on("click", function(){
+		remove_comma()
+	})
+
+}
+
+function remove_comma(){
+	setTimeout(function(){
+		if ($('.modal').hasClass("show") == true){
+			// this only called when there's "recipients, cc, bcc" field
+			$("input[data-fieldname='recipients']").on("change", function(){
+				slice_val(this)
+			})
+			$("input[data-fieldname='cc']").on("change", function(){
+				slice_val(this)
+			})
+			$("input[data-fieldname='bcc']").on("change", function(){
+				slice_val(this)
+			})
+		}
+	}, 500)
+
+	let slice_val = (obj) => {
+		if (obj.value.slice(-2 )== ", "){
+			var newval = obj.value.slice(0,-2)
+			obj.value = newval
+		}
+	}
+}
