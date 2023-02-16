@@ -600,11 +600,10 @@ def rename_dynamic_links(doctype, old, new):
 			)
 
 
-def bulk_rename(doctype, rows=None, via_console=False):
+def bulk_rename(doctype, rows=None, via_console= False):
 	"""Bulk rename documents
-
 	:param doctype: DocType to be renamed
-	:param rows: list of documents as `((oldname, newname), ..)`"""
+	:param rows: list of documents as `((oldname, newname, merge(optional)), ..)`"""
 	if not rows:
 		frappe.throw(_("Please select a valid csv file with data"))
 
@@ -617,20 +616,22 @@ def bulk_rename(doctype, rows=None, via_console=False):
 	for row in rows:
 		# if row has some content
 		if len(row) > 1 and row[0] and row[1]:
+			merge = len(row) > 2 and (row[2] == "1" or row[2].lower() == "true")
 			try:
-				if rename_doc(doctype, row[0], row[1], rebuild_search=False):
+				if rename_doc(doctype, row[0], row[1], merge=merge, rebuild_search=False):
 					msg = _("Successful: {0} to {1}").format(row[0], row[1])
 					frappe.db.commit()
 				else:
-					msg = _("Ignored: {0} to {1}").format(row[0], row[1])
+					msg = None
 			except Exception as e:
 				msg = _("** Failed: {0} to {1}: {2}").format(row[0], row[1], repr(e))
 				frappe.db.rollback()
 
-			if via_console:
-				print(msg)
-			else:
-				rename_log.append(msg)
+			if msg:
+				if via_console:
+					print(msg)
+				else:
+					rename_log.append(msg)
 
 	frappe.enqueue("frappe.utils.global_search.rebuild_for_doctype", doctype=doctype)
 
