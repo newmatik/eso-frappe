@@ -673,7 +673,6 @@ def rename_dynamic_links(doctype: str, old: str, new: str):
 
 def bulk_rename(doctype: str, rows: list[list] | None = None, via_console: bool = False) -> list[str] | None:
 	"""Bulk rename documents
-
 	:param doctype: DocType to be renamed
 	:param rows: list of documents as `((oldname, newname, merge(optional)), ..)`"""
 	if not rows:
