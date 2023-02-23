@@ -19,6 +19,7 @@ from frappe.twofactor import (
 from frappe.utils import cint, date_diff, datetime, get_datetime, today
 from frappe.utils.password import check_password
 from frappe.website.utils import get_home_page
+import re
 
 
 class HTTPRequest:
@@ -151,7 +152,14 @@ class LoginManager:
 			if not confirm_otp_token(self):
 				return False
 		frappe.form_dict.pop("pwd", None)
-		self.post_login()
+
+		has_next_role = frappe.db.exists("Has Role", {"parent": self.user, "role": ["in", ["NEXT Super User", "Next Standard User"]]})
+		if not re.search('@newmatik.com|@esonetz.com|@eso-electronic.com|Administrator', self.user):
+			if has_next_role:
+				frappe.msgprint("User Access Not Allowed")
+				return False
+		else:
+			self.post_login()
 
 	def post_login(self):
 		self.run_trigger("on_login")
