@@ -169,16 +169,27 @@ frappe.views.QueryReport = class QueryReport extends frappe.views.BaseList {
 		this.menu_items = this.get_menu_items();
 		this.datatable = null;
 		this.prepared_report_action = "New";
-
-		frappe.run_serially([
-			() => this.get_report_doc(),
-			() => this.get_report_settings(),
-			() => this.setup_progress_bar(),
-			() => this.setup_page_head(),
-			() => this.refresh_report(route_options),
-			() => this.add_chart_buttons_to_toolbar(true),
-			() => this.add_card_button_to_toolbar(true),
-		]);
+		if(this.report_name == "Kitting") {
+			frappe.run_serially([
+				() => this.get_report_doc(),
+				() => this.get_report_settings(),
+				() => this.setup_page_head(),
+				() => this.refresh_report(route_options),
+				() => this.add_chart_buttons_to_toolbar(true),
+				() => this.add_card_button_to_toolbar(true),
+			]);
+		} else {
+			frappe.run_serially([
+				() => this.get_report_doc(),
+				() => this.get_report_settings(),
+				() => this.setup_progress_bar(),
+				() => this.setup_page_head(),
+				() => this.refresh_report(route_options),
+				() => this.add_chart_buttons_to_toolbar(true),
+				() => this.add_card_button_to_toolbar(true),
+			]);
+		}
+		
 	}
 
 	add_card_button_to_toolbar() {
