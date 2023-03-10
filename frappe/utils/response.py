@@ -157,7 +157,7 @@ def make_logs(response=None):
 def json_handler(obj):
 	"""serialize non-serializable data for json"""
 	from collections.abc import Iterable
-	from re import Match
+	from re import match
 
 	if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
 		return str(obj)
