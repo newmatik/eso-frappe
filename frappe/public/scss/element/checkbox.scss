@@ -1,6 +1,7 @@
 $check-icon: url("data:image/svg+xml, <svg viewBox='0 0 8 7' fill='none' xmlns='http://www.w3.org/2000/svg'><path d='M1 4.00001L2.66667 5.80001L7 1.20001' stroke='white' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 
 input[type="checkbox"] {
+	vertical-align: middle;
 	position: relative;
 	width: var(--checkbox-size) !important;
 	height: var(--checkbox-size);
