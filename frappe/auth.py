@@ -147,11 +147,22 @@ class LoginManager:
 				return False
 		frappe.form_dict.pop("pwd", None)
 
-		has_next_role = frappe.db.exists("Has Role", {"parent": self.user, "role": ["in", ["NEXT Super User", "Next Standard User"]]})
-		if not re.search('@newmatik.com|@esonetz.com|@eso-electronic.com|Administrator', self.user):
-			if has_next_role:
-				frappe.msgprint("User Access Not Allowed")
-				return False
+		login_validation = frappe.get_doc("Additional Login Validation")
+
+		if login_validation.enabled:
+			has_next_role = frappe.db.exists("Has Role", {"parent": self.user, "role": ["in", ["NEXT Super User", "Next Standard User"]]})
+			email_domains = frappe.db.get_list("Excluded Domains for Login Validation", {"parent": "Additional Login Validation"}, ["email_domain"])
+			excluded_domains = "|".join(i["email_domain"] for i in email_domains)
+
+			if not re.search(excluded_domains, self.user):
+				if has_next_role:
+					frappe.msgprint("User Access Not Allowed, Kindly Redirect to Newmatik Portal.")
+					return False
+				else:
+					frappe.msgprint("User Access Not Allowed.")
+					return False
+			else:
+				self.post_login()
 		else:
 			self.post_login()
 
