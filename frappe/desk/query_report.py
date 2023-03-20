@@ -360,10 +360,6 @@ def export_query():
 		xlsx_data = build_xlsx_data(columns, data, visible_idx, include_indentation)
 		xlsx_file = make_xlsx(xlsx_data, "Query Report")
 
-		data["result"] = handle_duration_fieldtype_values(data.get("result"), data.get("columns"))
-		xlsx_data, column_widths = build_xlsx_data(columns, data, visible_idx, include_indentation)
-		xlsx_file = make_xlsx(xlsx_data, "Query Report", column_widths=column_widths)
-
 		frappe.response["filename"] = report_name + ".xlsx"
 		frappe.response["filecontent"] = xlsx_file.getvalue()
 		frappe.response["type"] = "binary"
