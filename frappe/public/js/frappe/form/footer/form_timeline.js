@@ -780,8 +780,9 @@ class FormTimeline extends BaseTimeline {
 
 	get_attachment_row(attachment, checked) {
 		return $(`<p class="checkbox flex">
-			<label class="ellipsis" title="${attachment.file_name}">
+			<label style="display: block; !important" class="ellipsis" title="${attachment.file_name}">
 				<input
+					style="display: inline-block; vertical-align: middle;"
 					type="checkbox"
 					data-file-name="${attachment.name}"
 					data-tile="${attachment.file_name}"
