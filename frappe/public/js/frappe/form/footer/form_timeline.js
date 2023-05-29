@@ -20,8 +20,17 @@ class FormTimeline extends BaseTimeline {
 	}
 
 	setup_timeline_actions() {
-		this.add_action_button(__('New Email'), () => this.compose_mail(), 'mail', 'btn-secondary-dark');
-		this.add_help_scout_action_button(__('New Help Scout Email'), () => this.compose_help_scout_email());
+		var docname = this.frm.docname
+		var doctype = this.frm.doctype
+		var conversation_id = frappe.model.get_value(doctype, docname, 'conversation_id')
+		console.log(conversation_id)
+		if (conversation_id){
+			this.add_action_button(__('New Email'), () => this.compose_mail(), 'mail', 'btn-secondary-dark');
+		} else {
+			this.add_action_button(__('New Email'), () => this.compose_mail(), 'mail', 'btn-secondary-dark');
+			this.add_help_scout_action_button(__('New Help Scout Email'), () => this.compose_help_scout_email());
+		}
+		
 		this.setup_new_event_button();
 	}
 
@@ -149,6 +158,7 @@ class FormTimeline extends BaseTimeline {
 		this.timeline_items.push(...this.get_communication_timeline_contents());
 		this.timeline_items.push(...this.get_auto_messages_timeline_contents());
 		this.timeline_items.push(...this.get_comment_timeline_contents());
+		this.timeline_items.push(...this.get_helpscout_timeline_contents());
 		if (!this.only_communication) {
 			this.timeline_items.push(...this.get_view_timeline_contents());
 			this.timeline_items.push(...this.get_energy_point_timeline_contents());
@@ -223,6 +233,7 @@ class FormTimeline extends BaseTimeline {
 		if (allow_reply) {
 			this.setup_reply(communication_content, doc);
 		}
+
 		return communication_content;
 	}
 
@@ -462,7 +473,207 @@ class FormTimeline extends BaseTimeline {
 	/*****************************/
 	//helpscout to erpnext integration starts here
 	/*****************************/
-	
+
+	setup_hsc_actions(comment_wrapper) {
+		let reply = $(`<button type="button" class="btn btn-primary btn-sm" style="margin-left: 92%">Reply</button>`).click(() => this.compose_help_scout_reply());
+		comment_wrapper.find('.button-reply').append(reply);
+	}
+
+	get_reply_fields() {
+		const fields = [
+			{
+				label: __("Conversation Type"),
+				fieldtype: "Select",
+				options: "Message\nNote",
+				fieldname: "conversation_type",
+				default: "Message",
+				onchange: function() {
+					const conversationType = this.dialog.get_value("conversation_type");
+					console.log(conversationType);
+					console.log(this.dialog)
+					if (conversationType === "Message") {
+						this.dialog.set_df_property('cc', 'hidden', false);
+						this.dialog.set_df_property('bcc', 'hidden', false);
+						this.dialog.set_df_property('ccandbcc_section', 'hidden', false);
+					} else {
+						this.dialog.set_df_property('cc', 'hidden', true);
+						this.dialog.set_df_property('bcc', 'hidden', true);
+						this.dialog.set_df_property('ccandbcc_section', 'hidden', true);
+					}
+				}.bind(this)
+			},
+			{ fieldtype: "Section Break",
+			  fieldname: "ccandbcc_section",
+		    },
+			{
+				label: __("CC"),
+				fieldtype: "MultiSelect",
+				fieldname: "cc",
+			},
+			{
+				label: __("BCC"),
+				fieldtype: "MultiSelect",
+				fieldname: "bcc",
+			},
+			{ fieldtype: "Section Break" },
+			{
+				label: __("Message"),
+				fieldtype: "Text",
+				fieldname: "content",
+				reqd: 1,
+				onchange: frappe.utils.debounce(
+					this.save_as_draft.bind(this),
+					300
+				)
+			},
+			{ fieldtype: "Section Break" },
+			{
+				label: __("Attach Document Print"),
+				fieldtype: "Check",
+				fieldname: "attach_document_print"
+			},
+			{
+				label: __("Select Print Format"),
+				fieldtype: "Select",
+				fieldname: "select_print_format"
+			},
+			{ fieldtype: "Column Break" },
+			{
+				label: __("Select Attachments"),
+				fieldtype: "HTML",
+				fieldname: "select_attachments"
+			}
+		];
+		
+		return fields;
+	}
+	compose_help_scout_reply() {
+		const me = this;
+
+		this.dialog = new frappe.ui.Dialog({
+			title: __("Reply"),
+			no_submit_on_enter: true,
+			fields: this.get_reply_fields(),
+			primary_action_label: __("Send"),
+			primary_action() {
+				me.send_reply();
+				me.dialog.hide();
+			},
+			secondary_action_label: __("Discard"),
+			secondary_action() {
+				me.dialog.hide();
+				me.clear_cache();
+			},
+			size: 'large',
+			minimizable: true
+		});
+		this.dialog.show();
+		this.setup_hsc_multiselect_queries();
+		this.setup_print();
+		this.setup_attach();
+
+		if (this.frm) {
+			$(document).trigger('form-typing', [this.frm]);
+		}
+	}
+
+	send_reply() {
+
+		const me = this;
+		const form_values = this.get_values();
+		var docname = this.frm.docname
+		var doctype = this.frm.doctype
+		const base_url = window.location.origin
+		var base64_list = []
+		var url = []
+		var url_base64 = []
+		var mime_type_list = []
+		var conversation_id = frappe.model.get_value(doctype, docname, 'conversation_id')
+
+		const selected_attachments =
+			$.map($(me.dialog.wrapper).find("[data-file-name]:checked"), function (element) {
+				return base_url + "/private/files/" + $(element).attr("data-tile");
+			});
+		
+		const link = frappe.urllib.get_full_url(`/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent(this.frm.doctype)}&name=${encodeURIComponent(this.frm.docname)}&format=${encodeURIComponent(form_values.select_print_format)}&lang=${encodeURIComponent(cur_frm.doc.language)}`)
+		
+		var counter = 0
+
+		if (form_values.attach_document_print != 0) {
+			selected_attachments.push(link)
+		}
+		if (selected_attachments.length > 0) {
+
+			selected_attachments.forEach(element => url.push({'url': element}));
+			var attachments_length = selected_attachments.length
+			selected_attachments.forEach(element => this.url_to_base64(element, function(myBase64) {
+				counter += 1
+				base64_list.push(myBase64.split(',')[1].trim())
+				mime_type_list.push(myBase64.substring(myBase64.indexOf(":") + 1, myBase64.indexOf(";base64")))
+				if (counter == attachments_length) {
+					url_base64 = url.map((o, i) => ({url: o.url, data: base64_list[i], mimetype: mime_type_list[i]}))
+
+							frappe.call({
+								method: 'newmatik.api.help_scout.help_scout_reply',
+								args: {
+									'docname': docname,
+									'doctype': doctype,
+									'conversation_id': conversation_id,
+									'conversation_type': form_values.conversation_type,
+									'message': form_values.content,
+									'cc': form_values.cc,
+									'bcc': form_values.bcc,
+									'attachments': url_base64,
+									callback(r) {
+									}
+								}
+							});
+						}
+					}
+				))
+		} else {
+			frappe.call({
+				method: 'newmatik.api.help_scout.help_scout_reply',
+				args: {
+					'docname': docname,
+					'doctype': doctype,
+					'conversation_id': conversation_id,
+					'conversation_type': form_values.conversation_type,
+					'message': form_values.content,
+					'cc': form_values.cc,
+					'bcc': form_values.bcc,
+					'attachments': selected_attachments,
+					callback(r) {
+					}
+				}
+			});
+		}
+	}
+	get_helpscout_timeline_contents() {
+		let hsc_timeline_contents = [];
+		(this.doc_info.helpscout || []).forEach(hsc => {
+			hsc_timeline_contents.push(this.get_helpscout_timeline_item(hsc));
+		});
+		return hsc_timeline_contents;
+	}
+
+	get_helpscout_timeline_item(hsc) {
+		return {
+			icon: 'helpscout',
+			creation: hsc.creation,
+			is_card: true,
+			doctype: "Comment",
+			name: hsc.name,
+			content: this.get_helpscout_timeline_content(hsc),
+		};
+	}
+
+	get_helpscout_timeline_content(doc) {
+		doc.content = frappe.dom.remove_script_and_style(doc.content);
+		const hsc_content = $(frappe.render_template('helpscout_timeline_message_box', { doc }));
+		this.setup_hsc_actions(hsc_content);
+		return hsc_content;
+	}
 	compose_help_scout_email() {
 		const me = this;
 
@@ -574,6 +785,7 @@ class FormTimeline extends BaseTimeline {
 
 	toggle_more_options(show_options) {
 		show_options = show_options || this.dialog.fields_dict.more_options.df.hidden;
+		console.log(show_options)
 		this.dialog.set_df_property('more_options', 'hidden', !show_options);
 
 		const label = frappe.utils.icon(show_options ? 'up-line': 'down');
@@ -591,6 +803,23 @@ class FormTimeline extends BaseTimeline {
 	setup_add_signature_button() {
 		let has_sender = this.dialog.has_field('sender');
 		this.dialog.set_df_property('add_signature', 'hidden', !has_sender);
+	}
+
+	setup_hsc_multiselect_queries() {
+		['cc', 'bcc'].forEach(field => {
+			this.dialog.fields_dict[field].get_data = () => {
+				const data = this.dialog.fields_dict[field].get_value();
+				const txt = data.match(/[^,\s*]*$/)[0] || '';
+
+				frappe.call({
+					method: "frappe.email.get_contact_list",
+					args: {txt},
+					callback: (r) => {
+						this.dialog.fields_dict[field].set_data(r.message);
+					}
+				});
+			};
+		});
 	}
 
 	setup_multiselect_queries() {

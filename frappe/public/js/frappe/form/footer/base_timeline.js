@@ -47,7 +47,7 @@ class BaseTimeline {
 	//custom helpscout action button
 	add_help_scout_action_button(label, action) {
 		this.timeline_actions_wrapper.show();
-		let action_btn = $(`<button style="display:none" class="btn btn-xs btn-primary action-btn" disabled>
+		let action_btn = $(`<button class="btn btn-xs btn-primary action-btn">
 			<svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="249.000000pt" height="300.000000pt" viewBox="0 0 249.000000 300.000000" preserveAspectRatio="xMidYMid meet" class="icon icon-xs">
 				<g transform="translate(0.000000,300.000000) scale(0.100000,-0.100000)" fill="#FFFFFF" stroke="none">
 					<path d="M598 2542 c-250 -252 -467 -474 -482 -495 -145 -199 -155 -495 -23

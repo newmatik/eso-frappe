@@ -131,6 +131,7 @@ def get_docinfo(doc=None, doctype=None, name=None):
 		"is_document_followed": is_document_followed(doc.doctype, doc.name, frappe.session.user),
 		"tags": get_tags(doc.doctype, doc.name),
 		"document_email": get_document_email(doc.doctype, doc.name),
+		"helpscout": get_hsc_comments(doc.doctype, doc.name, comment_type=["HelpScout"]),
 	}
 
 
@@ -190,6 +191,42 @@ def get_comments(
 	comments = frappe.get_all(
 		"Comment",
 		fields=["name", "creation", "content", "owner", "comment_type"],
+		filters={
+			"reference_doctype": doctype,
+			"reference_name": name,
+			"comment_type": ["in", comment_types],
+		},
+	)
+
+	# convert to markdown (legacy ?)
+	for c in comments:
+		if c.comment_type == "Comment":
+			c.content = frappe.utils.markdown(c.content)
+
+	return comments
+
+
+def get_hsc_comments(
+	doctype: str, name: str, comment_type: Union[str, List[str]] = "Comment"
+) -> List[frappe._dict]:
+	if isinstance(comment_type, list):
+		comment_types = comment_type
+
+	elif comment_type == "share":
+		comment_types = ["Shared", "Unshared"]
+
+	elif comment_type == "assignment":
+		comment_types = ["Assignment Completed", "Assigned"]
+
+	elif comment_type == "attachment":
+		comment_types = ["Attachment", "Attachment Removed"]
+
+	else:
+		comment_types = [comment_type]
+
+	comments = frappe.get_all(
+		"Comment",
+		fields=["name", "creation", "content", "owner", "comment_type","help_scout_conversation_type","help_scout_status"],
 		filters={
 			"reference_doctype": doctype,
 			"reference_name": name,

@@ -1,0 +1,95 @@
+<div class="timeline-message-box" data-communication-type="{{ doc.communication_type }}">
+	<span class="flex justify-between">
+		<span class="text-color flex">
+				<span>
+					<b>{{ __("Help Scout Conversation") }}</b>
+					<span class="text-muted margin-left">
+						{{ comment_when(doc.creation) }}
+					</span>
+				</span>
+		</span>
+		<span class="actions">
+            {% if ( doc.help_scout_status && doc.help_scout_status == "active") { %}
+                <span class="indicator-pill whitespace-nowrap green"
+                title="green"
+                style="order: -1; margin-right:10px">
+                    <span class="hidden-xs small">
+                        Active
+                    </span>
+                </span>
+                {% if (doc.help_scout_conversation_type && doc.help_scout_conversation_type == "message") { %}
+                    <span class="indicator-pill whitespace-nowrap gray"
+                    title="gray"
+                    style="order: -1">
+                        <span class="hidden-xs small">
+                            Message
+                        </span>
+                    </span>
+                {% } else if (doc.help_scout_conversation_type && doc.help_scout_conversation_type == "note") { %}
+                    <span class="indicator-pill whitespace-nowrap yellow"
+                    title="yellow"
+                    style="order: -1">
+                        <span class="hidden-xs small">
+                            Note
+                        </span>
+                    </span>
+                {% } %}
+			{% } else if ( doc.help_scout_status && doc.help_scout_status == "pending") { %}
+                    <span class="indicator-pill whitespace-nowrap yellow"
+                    title="yellow"
+                    style="order: -1; margin-right:10px">
+                        <span class="hidden-xs small">
+                            Pending
+                        </span>
+                    </span>
+                    {% if (doc.help_scout_conversation_type && doc.help_scout_conversation_type == "message") { %}
+                    <span class="indicator-pill whitespace-nowrap gray"
+                    title="gray"
+                    style="order: -1">
+                        <span class="hidden-xs small">
+                            Message
+                        </span>
+                    </span>
+                    {% } else if (doc.help_scout_conversation_type && doc.help_scout_conversation_type == "note") { %}
+                        <span class="indicator-pill whitespace-nowrap yellow"
+                        title="yellow"
+                        style="order: -1">
+                            <span class="hidden-xs small">
+                                Note
+                            </span>
+                        </span>
+                    {% } %}
+            {% } else if ( doc.help_scout_status && doc.help_scout_status == "closed") { %}
+                    <span class="indicator-pill whitespace-nowrap gray"
+                    title="gray"
+                    style="order: -1; margin-right:10px">
+                        <span class="hidden-xs small">
+                            Closed
+                        </span>
+                    </span>
+                    {% if (doc.help_scout_conversation_type && doc.help_scout_conversation_type == "message") { %}
+                    <span class="indicator-pill whitespace-nowrap gray"
+                    title="gray"
+                    style="order: -1">
+                        <span class="hidden-xs small">
+                            Message
+                        </span>
+                    </span>
+                    {% } else if (doc.help_scout_conversation_type && doc.help_scout_conversation_type == "note") { %}
+                        <span class="indicator-pill whitespace-nowrap yellow"
+                        title="yellow"
+                        style="order: -1">
+                            <span class="hidden-xs small">
+                                Note
+                            </span>
+                        </span>
+                    {% } %}
+            {% } %}
+		</span>
+	</span>
+	<div class="content" style="border-top: 1px solid #a8afa885; margin-bottom: 10px; border-bottom: 1px solid #a8afa885; padding: 30px 0px;">
+		{{ doc.content }}
+	</div>
+    <div class="button-reply">
+	</div>
+</div>
