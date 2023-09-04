@@ -30,8 +30,8 @@ frappe.ui.get_print_settings = function (pdf, callback, letter_head, pick_column
 				{ value: "Landscape", label: __("Landscape") },
 				{ value: "Portrait", label: __("Portrait") },
 			],
-			default: "Landscape",
-		},
+			default: frappe.query_report && frappe.query_report.page_name === "query-report/Kitting" ? "Portrait" : "Landscape"
+		}
 	];
 
 	if (pick_columns) {
