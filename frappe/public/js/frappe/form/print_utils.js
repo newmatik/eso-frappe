@@ -33,7 +33,7 @@ frappe.ui.get_print_settings = function(
 				{ value: "Landscape", label: __("Landscape") },
 				{ value: "Portrait", label: __("Portrait") }
 			],
-			default: "Landscape"
+			default: frappe.query_report && frappe.query_report.page_name === "query-report/Kitting" ? "Portrait" : "Landscape"
 		}
 	];
 
