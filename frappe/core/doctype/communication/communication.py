@@ -355,7 +355,7 @@ class Communication(Document):
 			self.add_link("Contact", contact_name)
 
 			# link contact's dynamic links to communication
-			# add_contact_links_to_communication(self, contact_name) # commented out as the dynamic links: Customer/Supplier should not be linked to communication only on Contact timeline
+			# add_contact_links_to_communication(self, contact_name) # Commented out as the dynamic links: Customer/Supplier should not be linked to communication only on Contact timeline
 
 	def deduplicate_timeline_links(self):
 		if self.timeline_links:
