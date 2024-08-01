@@ -377,7 +377,6 @@ def get_context(context):
 
 	def send(self, doc):
 		"""Build recipients and send Notification"""
-
 		context = get_context(doc)
 		context.update({"alert": self, "comments": None})
 		if doc.get("_comments"):
@@ -575,6 +574,12 @@ def get_context(context):
 			if recipient.condition:
 				if not frappe.safe_eval(recipient.condition, None, context):
 					continue
+
+			if recipient.user_group:
+				user_group = frappe.get_list("User Group Member", {'parent':recipient.user_group}, 'user')
+				for member in user_group:
+					recipients.append(member.user)
+
 			if recipient.receiver_by_document_field:
 				data_field, child_field = _parse_receiver_by_document_field(
 					recipient.receiver_by_document_field
