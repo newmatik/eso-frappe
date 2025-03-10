@@ -66,6 +66,7 @@ def send(
 	header=None,
 	print_letterhead=False,
 	with_container=False,
+	bypass_unsubscribe=False,
 ):
 	"""Add email to sending queue (Email Queue)
 
@@ -91,6 +92,7 @@ def send(
 	:param inline_images: List of inline images as {"filename", "filecontent"}. All src properties will be replaced with random Content-Id
 	:param header: Append header in email (boolean)
 	:param with_container: Wraps email inside styled container
+	:param bypass_unsubscribe: Bypass unsubscribe check
 	"""
 	if not unsubscribe_method:
 		unsubscribe_method = "/api/method/frappe.email.queue.unsubscribe"
@@ -130,8 +132,11 @@ def send(
 
 	all_ids = tuple(recipients + cc)
 
-	unsubscribed = frappe.db.sql_list(
-		"""
+	if bypass_unsubscribe:
+		unsubscribed = []
+	else:
+		unsubscribed = frappe.db.sql_list(
+			"""
 		SELECT
 			distinct email
 		from
