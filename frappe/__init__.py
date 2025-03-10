@@ -609,6 +609,7 @@ def sendmail(
 	header=None,
 	print_letterhead=False,
 	with_container=False,
+	bypass_unsubscribe=False,
 ):
 	"""Send email using user's default **Email Account** or global default **Email Account**.
 
@@ -636,6 +637,7 @@ def sendmail(
 	:param args: Arguments for rendering the template
 	:param header: Append header in email
 	:param with_container: Wraps email inside a styled container
+	:param bypass_unsubscribe: Bypass unsubscribe link
 	"""
 
 	if recipients is None:
@@ -691,6 +693,7 @@ def sendmail(
 		header=header,
 		print_letterhead=print_letterhead,
 		with_container=with_container,
+		bypass_unsubscribe=bypass_unsubscribe,
 	)
 
 
