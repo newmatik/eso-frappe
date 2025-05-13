@@ -11,7 +11,7 @@ colorama~=0.4.4
 coverage==5.5
 croniter~=1.0.11
 cryptography~=3.4.7
-dropbox~=11.7.0
+dropbox>=11.6.0,<12.0.0
 email-reply-parser~=0.5.12
 Faker~=8.1.0
 future==0.18.2
@@ -57,7 +57,7 @@ pypng~=0.0.20
 PyQRCode~=1.2.1
 python-dateutil~=2.8.1
 pytz==2021.1
-PyYAML~=5.4.1
+PyYAML==6.0
 rauth~=0.7.3
 razorpay~=1.2.0
 redis~=3.5.3
