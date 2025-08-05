@@ -50,11 +50,7 @@ frappe.report_utils = {
 
 		function get_translated_column_label(fieldname) {
 			let column = columns.find((column) => column.fieldname === fieldname);
-			if (column && column.label) {
-				return column.label;
-			} else {
-				return __(frappe.model.unscrub(fieldname));
-			}
+			return column?.label ?? __(frappe.model.unscrub(fieldname));
 		}
 	},
 
