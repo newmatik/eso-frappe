@@ -146,7 +146,7 @@ frappe.ui.form.AssignToDialog = Class.extend({
 	},
 	get_fields: function() {
 		let me = this;
-		var employee
+
 		return [
 			{
 				label: __("Assign to me"),
@@ -161,33 +161,7 @@ frappe.ui.form.AssignToDialog = Class.extend({
 				label: __("Assign To"),
 				reqd: true,
 				get_data: function(txt) {
-					let eso_electronic = frappe.db.get_link_options("User", txt, {
-						user_type: "System User", 
-						enabled: 1,
-						name: ['like', '%eso_electronic.com']
-					});
-					
-					let newmatik = frappe.db.get_link_options("User", txt, {
-						user_type: "System User", 
-						enabled: 1,
-						name: ['like', '%newmatik.com']
-					});
-
-					let esonetz = frappe.db.get_link_options("User", txt, {
-						user_type: "System User", 
-						enabled: 1,
-						name: ['like', '%esonetz.com']
-					});
-
-					const employee_list = Promise.all([eso_electronic, newmatik, esonetz]).then(function(result) {
-						const combined = result.reduce((acc, result) => { 
-							return acc.concat(result)
-						 }, [])
-						
-						return combined
-						
-					});
-					return employee_list
+					return frappe.db.get_link_options("User", txt, {user_type: "System User", enabled: 1});
 				}
 			},
 			{
