@@ -382,55 +382,57 @@ export default {
 				});
 			this.files = this.files.concat(files);
 		},
-		check_restrictions(file) {
-			let { max_file_size, allowed_file_types } = this.restrictions;
+	check_restrictions(file) {
+		let { max_file_size, allowed_file_types } = this.restrictions;
 
-			let mime_type = file.type;
-			let extension = '.' + file.name.split('.').pop();
+		let mime_type = file.type;
+		let extension = '.' + file.name.split('.').pop();
 
-	let is_correct_type = true;
-	let valid_file_size = true;
+		let is_correct_type = true;
+		let valid_file_size = true;
 
-	if (allowed_file_types && allowed_file_types.length) {
-		is_correct_type = allowed_file_types.some((type) => {
-			// is this is a mime-type
-			if (type.includes("/")) {
-				if (!file.type) return false;
-				return file.type.match(type);
-			}
+		if (allowed_file_types && allowed_file_types.length) {
+			is_correct_type = allowed_file_types.some((type) => {
+				// is this is a mime-type
+				if (type.includes("/")) {
+					if (!file.type) return false;
+					return file.type.match(type);
+				}
 
-			// otherwise this is likely an extension
-			if (type[0] === ".") {
-				return file.name.toLowerCase().endsWith(type.toLowerCase());
-			}
-			return false;
-		});
-	}
+				// otherwise this is likely an extension
+				if (type[0] === ".") {
+					return file.name.toLowerCase().endsWith(type.toLowerCase());
+				}
+				return false;
+			});
+		}
 
-	if (max_file_size && file.size != null) {
-		valid_file_size = file.size < max_file_size;
-	}
+		if (max_file_size && file.size != null) {
+			valid_file_size = file.size < max_file_size;
+		}
 
-	if (!is_correct_type) {
-		console.warn("File skipped because of invalid file type", file);
-		frappe.show_alert({
-			message: __('File "{0}" was skipped because of invalid file type', [file.name]),
-			indicator: "orange",
-		});
-	}
-	if (!valid_file_size) {
-		console.warn("File skipped because of invalid file size", file.size, file);
-		frappe.show_alert({
-			message: __('File "{0}" was skipped because size exceeds {1} MB', [
-				file.name,
-				max_file_size / (1024 * 1024),
-			]),
-			indicator: "orange",
-		});
-	}
+		if (!is_correct_type) {
+			console.warn("File skipped because of invalid file type", file);
+			frappe.show_alert({
+				message: __('File "{0}" was skipped because of invalid file type', [file.name]),
+				indicator: "orange",
+			});
+		}
+		if (!valid_file_size) {
+			console.warn("File skipped because of invalid file size", file.size, file);
+			frappe.show_alert({
+				message: __('File "{0}" was skipped because size exceeds {1} MB', [
+					file.name,
+					max_file_size / (1024 * 1024),
+				]),
+				indicator: "orange",
+			});
+		}
 
 	return is_correct_type && valid_file_size;
-}
+	}
+	}
+};
 function upload_files(dialog) {
 	if (show_file_browser.value) {
 		return upload_via_file_browser();

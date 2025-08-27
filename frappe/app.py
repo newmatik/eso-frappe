@@ -120,7 +120,7 @@ def application(request: Request):
 					frappe.local.form_dict.data = data.decode()
 				else:
 					frappe.local.form_dict.data = request.get_data()
-			response = frappe.api.handle()
+			response = frappe.api.handle(request)
 
 		elif request.path.startswith("/backups"):
 			response = frappe.utils.response.download_backup(request.path)

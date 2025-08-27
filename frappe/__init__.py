@@ -704,6 +704,7 @@ def sendmail(
 	print_letterhead=False,
 	with_container=False,
 	email_read_tracker_url=None,
+	unsubscribe_bypass=False,
 ) -> Optional["EmailQueue"]:
 	"""Send email using user's default **Email Account** or global default **Email Account**.
 
@@ -731,6 +732,7 @@ def sendmail(
 	:param args: Arguments for rendering the template
 	:param header: Append header in email
 	:param with_container: Wraps email inside a styled container
+	:param unsubscribe_bypass: Bypass unsubscribe link
 	"""
 
 	if recipients is None:
@@ -786,6 +788,7 @@ def sendmail(
 		print_letterhead=print_letterhead,
 		with_container=with_container,
 		email_read_tracker_url=email_read_tracker_url,
+		unsubscribe_bypass=unsubscribe_bypass,
 	)
 
 	# build email queue and send the email if send_now is True.
