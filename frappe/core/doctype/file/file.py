@@ -910,28 +910,24 @@ def extract_images_from_html(doc, content, is_private=False):
 			mtype = headers.split(";")[0]
 			filename = get_random_filename(content_type=mtype)
 
-		doctype = doc.parenttype if doc.parent else doc.doctype
-		name = doc.parent or doc.name
-
-		doctype = doc.doctype
-		name = doc.name
-		if doc.parent:
+		if doc.meta.istable:
 			doctype = doc.parenttype
 			name = doc.parent
+		else:
+			doctype = doc.doctype
+			name = doc.name
 
-		if doc.doctype == "Comment":
-			doctype = doc.reference_doctype
-			name = doc.reference_name
-
-		_file = frappe.get_doc({
-			"doctype": "File",
-			"file_name": filename,
-			"attached_to_doctype": doctype,
-			"attached_to_name": name,
-			"content": content,
-			"decode": True
-		})
-
+		_file = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": filename,
+				"attached_to_doctype": doctype,
+				"attached_to_name": name,
+				"content": content,
+				"decode": True,
+				"is_private": is_private,
+			}
+		)
 		_file.save(ignore_permissions=True)
 
 		file_url = _file.file_url
