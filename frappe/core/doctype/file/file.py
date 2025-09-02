@@ -835,6 +835,31 @@ def has_permission(doc, ptype=None, user=None, debug=False):
 	return has_access
 
 
+def get_permission_query_conditions(user):
+	"""Return permission query conditions for File doctype list view"""
+	if not user:
+		user = frappe.session.user
+
+	if user == "Administrator":
+		return ""
+
+	conditions = []
+
+	# Public files
+	conditions.append("`tabFile`.`is_private` = 0")
+
+	# Own files
+	conditions.append(f"`tabFile`.`owner` = {frappe.db.escape(user)}")
+
+	# Files in Home folder (general access)
+	conditions.append("`tabFile`.`folder` = 'Home'")
+
+	# Files in Attachments folder (general access)
+	conditions.append("`tabFile`.`folder` = 'Home/Attachments'")
+
+	return " or ".join(conditions) if conditions else ""
+
+
 def remove_file_by_url(file_url, doctype=None, name=None):
 	if doctype and name:
 		fid = frappe.db.get_value(

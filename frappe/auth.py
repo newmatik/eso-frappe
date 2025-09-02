@@ -151,7 +151,13 @@ class LoginManager:
 
 		if login_validation.enabled:
 			has_next_role = frappe.db.exists("Has Role", {"parent": self.user, "role": ["in", ["NEXT Super User", "Next Standard User"]]})
-			email_domains = frappe.db.get_list("Excluded Domains for Login Validation", {"parent": "Additional Login Validation"}, ["email_domain"])
+
+			# Use frappe.get_all with ignore_permissions to bypass permission checks
+			email_domains = frappe.get_all("Excluded Domains for Login Validation",
+				filters={"parent": "Additional Login Validation"},
+				fields=["email_domain"],
+				ignore_permissions=True)
+
 			excluded_domains = "|".join(i["email_domain"] for i in email_domains)
 
 			if not re.search(excluded_domains, self.user):
