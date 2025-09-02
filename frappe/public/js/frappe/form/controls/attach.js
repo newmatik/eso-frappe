@@ -58,12 +58,18 @@ frappe.ui.form.ControlAttach = class ControlAttach extends frappe.ui.form.Contro
 	}
 	on_attach_click() {
 		this.set_upload_options();
-		this.file_uploader = new frappe.ui.FileUploader(this.upload_options);
+		// Ensure uploader bundle is loaded before instantiation
+		frappe.require("file_uploader.bundle.js").then(() => {
+			this.file_uploader = new frappe.ui.FileUploader(this.upload_options);
+		});
 	}
 	on_attach_doc_image() {
 		this.set_upload_options();
 		this.upload_options.restrictions.allowed_file_types = ["image/*"];
-		this.file_uploader = new frappe.ui.FileUploader(this.upload_options);
+		// Ensure uploader bundle is loaded before instantiation
+		frappe.require("file_uploader.bundle.js").then(() => {
+			this.file_uploader = new frappe.ui.FileUploader(this.upload_options);
+		});
 	}
 	set_upload_options() {
 		let options = {
@@ -85,7 +91,19 @@ frappe.ui.form.ControlAttach = class ControlAttach extends frappe.ui.form.Contro
 		}
 
 		if (this.df.options) {
-			Object.assign(options, this.df.options);
+			let df_options = this.df.options;
+			// Support JSON strings as well as objects in df.options
+			if (typeof df_options === "string") {
+				if (frappe.utils && frappe.utils.is_json && frappe.utils.is_json(df_options)) {
+					df_options = JSON.parse(df_options);
+				} else {
+					// non-JSON strings are ignored to avoid breaking legacy semantics
+					df_options = {};
+				}
+			}
+			if (typeof df_options === "object") {
+				Object.assign(options, df_options);
+			}
 		}
 		this.upload_options = options;
 	}

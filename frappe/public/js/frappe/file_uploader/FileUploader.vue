@@ -472,9 +472,7 @@ function check_restrictions(file) {
 		}
 
 	return is_correct_type && valid_file_size;
-	}
-	}
-};
+}
 function upload_files(dialog) {
 	if (show_file_browser.value) {
 		return upload_via_file_browser();
