@@ -18,6 +18,7 @@ def load_address_and_contact(doc, key=None):
 		["Dynamic Link", "link_doctype", "=", doc.doctype],
 		["Dynamic Link", "link_name", "=", doc.name],
 		["Dynamic Link", "parenttype", "=", "Address"],
+		["Address", "disabled", "=", 0],
 	]
 	address_list = frappe.get_list("Address", filters=filters, fields=["*"], order_by="creation asc")
 	address_list = [a.update({"display": get_address_display(a)}) for a in address_list]
