@@ -6,7 +6,8 @@
  "field_order": [
   "link_doctype",
   "link_name",
-  "link_title"
+  "link_title",
+  "communication_date"
  ],
  "fields": [
   {
@@ -31,17 +32,33 @@
    "in_list_view": 1,
    "label": "Link Title",
    "read_only": 1
+  },
+  {
+   "fieldname": "communication_date",
+   "fieldtype": "Date",
+   "label": "Communication Date",
+   "read_only": 1
   }
  ],
  "istable": 1,
+<<<<<<< HEAD
  "modified": "2019-05-21 09:47:23.043960",
+=======
+ "links": [],
+ "modified": "2025-11-08 10:59:03.629772",
+>>>>>>> c856c743b4 (chore: add communication date field to Communication Link)
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Communication Link",
  "owner": "Administrator",
  "permissions": [],
  "quick_entry": 1,
+<<<<<<< HEAD
  "sort_field": "modified",
+=======
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+>>>>>>> c856c743b4 (chore: add communication date field to Communication Link)
  "sort_order": "DESC",
  "track_changes": 1
 }

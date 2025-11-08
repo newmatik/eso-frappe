@@ -14,6 +14,7 @@ class CommunicationLink(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
+		communication_date: DF.Date | None
 		link_doctype: DF.Link
 		link_name: DF.DynamicLink
 		link_title: DF.ReadOnly | None
