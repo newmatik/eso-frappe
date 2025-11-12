@@ -487,7 +487,14 @@ class Communication(Document, CommunicationEmailMixin):
 			self.add_link(doctype, name)
 
 	def add_link(self, link_doctype, link_name, autosave=False):
-		self.append("timeline_links", {"link_doctype": link_doctype, "link_name": link_name})
+		self.append(
+			"timeline_links",
+			{
+				"link_doctype": link_doctype,
+				"link_name": link_name,
+				"communication_date": self.communication_date,
+			},
+		)
 
 		if autosave:
 			self.save(ignore_permissions=True)
