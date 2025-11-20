@@ -32,6 +32,7 @@ class Notification(Document):
 		from frappe.email.doctype.notification_recipient.notification_recipient import NotificationRecipient
 		from frappe.types import DF
 
+		attach_files: DF.Literal["", "From Field", "All"]
 		attach_print: DF.Check
 		channel: DF.Literal["Email", "Slack", "System Notification", "SMS"]
 		condition: DF.Code | None
@@ -51,6 +52,7 @@ class Notification(Document):
 			"Method",
 			"Custom",
 		]
+		from_attach_field: DF.Literal[None]
 		is_standard: DF.Check
 		message: DF.Code | None
 		message_type: DF.Literal["Markdown", "HTML", "Plain Text"]
@@ -89,6 +91,9 @@ class Notification(Document):
 
 		if self.event == "Value Change" and not self.value_changed:
 			frappe.throw(_("Please specify which value field must be checked"))
+
+		if self.attach_files == "From Field" and not self.from_attach_field:
+			frappe.throw(_("Please specify the field from which to attach files"))
 
 		self.validate_forbidden_document_types()
 		self.validate_condition()
@@ -251,7 +256,7 @@ def get_context(context):
 			"subject": subject,
 			"from_user": doc.modified_by or doc.owner,
 			"email_content": frappe.render_template(self.message, context),
-			"attached_file": attachments and json.dumps(attachments[0]),
+			"attached_file": json.dumps(attachments) if attachments else None,
 		}
 		enqueue_create_notification(users, notification_doc)
 
@@ -293,6 +298,13 @@ def get_context(context):
 				communication_type="Automated Message",
 			).get("name")
 
+		# We expect at most one print format attachment, but we don't know where it is.
+		print_letterhead = any(
+			attachment.get("print_letterhead")
+			for attachment in attachments
+			if attachment.get("print_format_attachment") == 1
+		)
+
 		frappe.sendmail(
 			recipients=recipients,
 			subject=subject,
@@ -304,7 +316,7 @@ def get_context(context):
 			reference_name=get_reference_name(doc),
 			attachments=attachments,
 			expose_recipients="header",
-			print_letterhead=((attachments and attachments[0].get("print_letterhead")) or False),
+			print_letterhead=print_letterhead,
 			communication=communication,
 		)
 
@@ -389,10 +401,28 @@ def get_context(context):
 
 		return receiver_list
 
-	def get_attachment(self, doc):
-		"""check print settings are attach the pdf"""
-		if not self.attach_print:
-			return None
+	def get_attachment(self, doc) -> list[dict]:
+		"""Check Attachment Settings and return attachments accordingly"""
+		attachments = []
+
+		if self.attach_print:
+			attachments.append(self.get_print(doc))
+
+		if self.attach_files == "From Field" and self.from_attach_field:
+			attachments.append({"file_url": doc.get(self.from_attach_field)})
+		elif self.attach_files == "All":
+			attachments.extend(
+				frappe.get_all(
+					"File",
+					fields=["file_url"],
+					filters={"attached_to_doctype": self.document_type, "attached_to_name": doc.name},
+				)
+			)
+
+		return attachments
+
+	def get_print(self, doc):
+		"""check print settings and return dict with print info"""
 
 		print_settings = frappe.get_doc("Print Settings", "Print Settings")
 		if (doc.docstatus == 0 and not print_settings.allow_print_for_draft) or (
@@ -407,18 +437,17 @@ def get_context(context):
 				title=_("Error in Notification"),
 			)
 		else:
-			return [
-				{
-					"print_format_attachment": 1,
-					"doctype": doc.doctype,
-					"name": doc.name,
-					"print_format": self.print_format,
-					"print_letterhead": print_settings.with_letterhead,
-					"lang": frappe.db.get_value("Print Format", self.print_format, "default_print_language")
-					if self.print_format
-					else "en",
-				}
-			]
+			return {
+				"print_format_attachment": 1,
+				"doctype": doc.doctype,
+				"name": doc.name,
+				"print_format": self.print_format,
+				"print_letterhead": print_settings.with_letterhead,
+				"lang": doc.get("language")
+				or frappe.db.get_value("Print Format", self.print_format, "default_print_language")
+				if self.print_format
+				else "en",
+			}
 
 	def get_template(self, md_as_html=False):
 		module = get_doc_module(self.module, self.doctype, self.name)
