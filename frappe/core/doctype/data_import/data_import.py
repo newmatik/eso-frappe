@@ -83,6 +83,7 @@ class DataImport(Document):
 		if not self.google_sheets_url:
 			return
 		validate_google_sheets_url(self.google_sheets_url)
+		self.get_importer()
 
 	def set_payload_count(self):
 		if self.import_file:
