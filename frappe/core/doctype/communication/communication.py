@@ -517,7 +517,7 @@ def on_doctype_update():
 	frappe.db.add_index("Communication", ["message_id(140)"])
 	frappe.db.add_index(
 		"Communication",
-		["reference_doctype", "reference_name", "communication_date DESC", "communication_type"],
+		["reference_doctype", "reference_name", "communication_date", "communication_type"],
 		index_name="comm_ref_type_date_idx",
 	)
 
