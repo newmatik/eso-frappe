@@ -310,7 +310,7 @@ def get_communication_data(
 		AND (C.reference_doctype = %(doctype)s AND C.reference_name = %(name)s)
 		{conditions}
 		ORDER BY C.communication_date DESC
-		LIMIT %(limit)s
+		LIMIT %({start + limit})s
 	"""
 
 	# communications linked in Timeline Links
@@ -322,7 +322,7 @@ def get_communication_data(
 		AND `tabCommunication Link`.link_doctype = %(doctype)s AND `tabCommunication Link`.link_name = %(name)s
 		{conditions}
 		ORDER BY `tabCommunication Link`.communication_date DESC
-		LIMIT %(limit)s
+		LIMIT %({start + limit})s
 	"""
 
 <<<<<<< HEAD
