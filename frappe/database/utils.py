@@ -100,6 +100,7 @@ def dangerously_reconnect_on_connection_abort(func):
 
 	return wrapper
 
+
 def drop_index_if_exists(table: str, index: str):
 	import click
 
