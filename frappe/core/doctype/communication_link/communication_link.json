@@ -41,28 +41,15 @@
   }
  ],
  "istable": 1,
-<<<<<<< HEAD
- "modified": "2019-05-21 09:47:23.043960",
-=======
- "links": [],
-<<<<<<< HEAD
- "modified": "2025-11-08 10:59:03.629772",
->>>>>>> c856c743b4 (chore: add communication date field to Communication Link)
-=======
  "modified": "2025-11-08 11:07:13.960236",
->>>>>>> 7ba90374db (fix: it should be datetime)
+ "links": [],
  "modified_by": "Administrator",
  "module": "Core",
  "name": "Communication Link",
  "owner": "Administrator",
  "permissions": [],
  "quick_entry": 1,
-<<<<<<< HEAD
  "sort_field": "modified",
-=======
- "row_format": "Dynamic",
- "sort_field": "creation",
->>>>>>> c856c743b4 (chore: add communication date field to Communication Link)
  "sort_order": "DESC",
  "track_changes": 1
 }
