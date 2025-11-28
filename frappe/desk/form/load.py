@@ -310,7 +310,7 @@ def get_communication_data(
 		AND (C.reference_doctype = %(doctype)s AND C.reference_name = %(name)s)
 		{conditions}
 		ORDER BY C.communication_date DESC
-		LIMIT %({start + limit})s
+		LIMIT %(cte_limit)s
 	"""
 
 	# communications linked in Timeline Links
@@ -322,7 +322,7 @@ def get_communication_data(
 		AND `tabCommunication Link`.link_doctype = %(doctype)s AND `tabCommunication Link`.link_name = %(name)s
 		{conditions}
 		ORDER BY `tabCommunication Link`.communication_date DESC
-		LIMIT %({start + limit})s
+		LIMIT %(cte_limit)s
 	"""
 
 <<<<<<< HEAD
@@ -362,6 +362,7 @@ def get_communication_data(
 			name=str(name),
 			start=frappe.utils.cint(start),
 			limit=limit,
+			cte_limit=limit + start,
 		),
 		as_dict=as_dict,
 	)
