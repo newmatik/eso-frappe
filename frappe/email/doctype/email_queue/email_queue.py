@@ -655,7 +655,7 @@ class QueueBuilder:
 		if self._unsubscribed_user_emails is not None:
 			return self._unsubscribed_user_emails
 
-		all_ids = list(set(self.recipients + self.cc))
+		all_ids = list(set(self.recipients + self.cc + self.bcc))
 
 		EmailUnsubscribe = DocType("Email Unsubscribe")
 
@@ -689,6 +689,10 @@ class QueueBuilder:
 		unsubscribed_emails = self.get_unsubscribed_user_emails()
 		return [mail_id for mail_id in self.cc if mail_id not in unsubscribed_emails]
 
+	def final_bcc(self):
+		unsubscribed_emails = self.get_unsubscribed_user_emails()
+		return [mail_id for mail_id in self.bcc if mail_id not in unsubscribed_emails]
+
 	def get_attachments(self):
 		attachments = []
 		if self._attachments:
@@ -716,7 +720,7 @@ class QueueBuilder:
 			attachments=self._attachments,
 			reply_to=self.reply_to,
 			cc=self.final_cc(),
-			bcc=self.bcc,
+			bcc=self.final_bcc(),
 			email_account=email_account,
 			expose_recipients=self.expose_recipients,
 			inline_images=self.inline_images,
@@ -743,7 +747,7 @@ class QueueBuilder:
 		"""
 		final_recipients = self.final_recipients()
 		queue_separately = (final_recipients and self.queue_separately) or len(final_recipients) > 100
-		if not (final_recipients + self.final_cc()):
+		if not (final_recipients + self.final_cc() + self.final_bcc()):
 			return []
 
 		queue_data = self.as_dict(include_recipients=False)
@@ -751,7 +755,7 @@ class QueueBuilder:
 			return []
 
 		if not queue_separately:
-			recipients = list(set(final_recipients + self.final_cc() + self.bcc))
+			recipients = list(set(final_recipients + self.final_cc() + self.final_bcc()))
 			q = EmailQueue.new({**queue_data, **{"recipients": recipients}}, ignore_permissions=True)
 			send_now and q.send()
 			return q
@@ -776,7 +780,7 @@ class QueueBuilder:
 		# This re-uses smtp server instance to minimize the cost of new session creation
 		smtp_server_instance = None
 		for r in final_recipients:
-			recipients = list(set([r, *self.final_cc(), *self.bcc]))
+			recipients = list(set([r, *self.final_cc(), *self.final_bcc()]))
 			q = EmailQueue.new({**queue_data, **{"recipients": recipients}}, ignore_permissions=True)
 			if not smtp_server_instance:
 				email_account = q.get_email_account(raise_error=True)
@@ -821,7 +825,7 @@ class QueueBuilder:
 			"communication": self.communication,
 			"send_after": self.send_after,
 			"show_as_cc": ",".join(self.final_cc()),
-			"show_as_bcc": ",".join(self.bcc),
+			"show_as_bcc": ",".join(self.final_bcc()),
 			"email_account": email_account_name or None,
 			"email_read_tracker_url": self.email_read_tracker_url,
 		}
