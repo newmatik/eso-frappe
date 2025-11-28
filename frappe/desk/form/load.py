@@ -338,10 +338,7 @@ def get_communication_data(
 		ORDER BY communication_date DESC
 		LIMIT %(limit)s
 		OFFSET %(start)s
-	""".format(
-			part1=part1,
-			part2=part2,
-		),
+	""",
 		dict(
 			doctype=doctype,
 			name=str(name),
