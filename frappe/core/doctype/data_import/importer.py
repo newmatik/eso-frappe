@@ -451,23 +451,6 @@ class ImportFile:
 		if content:
 			return self.read_content(content, extension)
 
-	def validate_data_from_template_file(self, data):
-		meta = frappe.get_meta(self.doctype)
-		mandatory_fields = [df.label for df in meta.fields if df.reqd and df.fieldname not in no_value_fields]
-
-		headers = data[0] if data else []
-		if not headers:
-			frappe.throw(_("Import template should contain a Header row."), title=_("Template Error"))
-
-		for field in mandatory_fields:
-			if field not in headers:
-				frappe.throw(
-					_(
-						"Mandatory field {0} is missing in the import template for {1}. Please correct the template and try again."
-					).format(frappe.bold(field), frappe.bold(self.doctype)),
-					title=_("Template Error"),
-				)
-
 	def parse_data_from_template(self):
 		header = None
 		data = []
@@ -492,6 +475,32 @@ class ImportFile:
 				_("Import template should contain a Header and atleast one row."),
 				title=_("Template Error"),
 			)
+
+	def validate_data_from_template_file(self, data):
+		mandatory_fields = self.get_mandatory_fields()
+		headers = data[0] if data else []
+
+		if not headers:
+			frappe.throw(_("Import template should contain a Header row."), title=_("Template Error"))
+
+		for field in mandatory_fields:
+			if field not in headers:
+				frappe.throw(
+					_(
+						"Mandatory field {0} is missing in the import template for {1}. Please correct the template and try again."
+					).format(frappe.bold(field), frappe.bold(self.doctype)),
+					title=_("Template Error"),
+				)
+
+	def get_mandatory_fields(self):
+		meta = frappe.get_meta(self.doctype)
+		mandatory_fields = []
+
+		for df in meta.fields:
+			if df.reqd and df.fieldtype not in no_value_fields:
+				mandatory_fields.append(df.label)
+
+		return mandatory_fields
 
 	def get_data_for_import_preview(self):
 		"""Adds a serial number column as the first column"""
