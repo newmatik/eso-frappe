@@ -243,4 +243,4 @@ execute:frappe.call("frappe.core.doctype.system_settings.system_settings.sync_sy
 frappe.patches.v15_0.migrate_to_utm
 frappe.patches.v16_0.add_module_deprecation_warning
 frappe.core.doctype.communication_link.patches.copy_communication_date_to_link
-
+frappe.core.doctype.communication.patches.drop_ref_dt_dn_index
