@@ -326,7 +326,7 @@ def get_communication_data(
 	"""
 
 	return frappe.db.sql(
-		"""
+		f"""
 		WITH part1 AS ({part1}), part2 AS ({part2})
 		SELECT *
 		FROM (
