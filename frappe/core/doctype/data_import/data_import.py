@@ -12,12 +12,8 @@ from frappe.core.doctype.data_import.importer import Importer
 from frappe.model import CORE_DOCTYPES
 from frappe.model.document import Document
 from frappe.modules.import_file import import_file_by_path
-<<<<<<< HEAD
-from frappe.utils.background_jobs import enqueue, is_job_enqueued
-=======
 from frappe.utils import cint
-from frappe.utils.background_jobs import enqueue, get_redis_conn, is_job_enqueued
->>>>>>> 45f3bc16b7 (fix: validate allow_import and import permission in data import)
+from frappe.utils.background_jobs import enqueue, is_job_enqueued
 from frappe.utils.csvutils import validate_google_sheets_url
 
 BLOCKED_DOCTYPES = CORE_DOCTYPES - {"User", "Role", "Print Format"}
