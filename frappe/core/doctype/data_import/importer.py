@@ -476,11 +476,14 @@ class ImportFile:
 				title=_("Template Error"),
 			)
 
-	def validate_data_from_template_file(self, data):
+	def validate_columns_of_import_file(self, data):
 		mandatory_fields = self.get_mandatory_fields()
 		headers = data[0] if data else []
 
-		if not headers:
+		if len(headers) == 1 and ";" in headers[0]:
+			return
+
+		if not len(headers):
 			frappe.throw(_("Import template should contain a Header row."), title=_("Template Error"))
 
 		for field in mandatory_fields:
@@ -637,7 +640,7 @@ class ImportFile:
 		elif extension == "xls":
 			data = read_xls_file_from_attached_file(content)
 
-		self.validate_data_from_template_file(data)
+		self.validate_columns_of_import_file(data)
 		return data
 
 
