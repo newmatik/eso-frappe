@@ -640,8 +640,7 @@ class ImportFile:
 		elif extension == "xls":
 			data = read_xls_file_from_attached_file(content)
 
-		if self.import_type == INSERT:
-			self.validate_columns_of_import_file(data)
+		self.validate_columns_of_import_file(data)
 		return data
 
 
