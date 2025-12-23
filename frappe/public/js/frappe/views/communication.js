@@ -1013,8 +1013,8 @@ frappe.views.CommunicationComposer = class {
 	on_use_html_toggle() {
 		const use_html = this.dialog.get_value("use_html");
 
-		this.dialog.set_df_property("content", "hidden", use_html ? 1 : 0);
-		this.dialog.set_df_property("content_html", "hidden", !use_html ? 1 : 0);
+		this.dialog.set_df_property("content", "hidden", use_html);
+		this.dialog.set_df_property("content_html", "hidden", !use_html);
 
 		this.dialog.set_value("email_template", "");
 	}
