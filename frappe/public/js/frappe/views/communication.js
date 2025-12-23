@@ -890,10 +890,9 @@ frappe.views.CommunicationComposer = class {
 		let message = this.message || "";
 		if (!message && this.frm) {
 			const { doctype, docname } = this.frm;
-
+			message = (await localforage.getItem(doctype + docname)) || "";
 			const use_html = (await localforage.getItem(doctype + docname + "_use_html")) || 0;
-			this.dialog.set_value("use_html", use_html);
-			this.on_use_html_toggle();
+			await this.dialog.set_value("use_html", use_html);
 		}
 
 		if (message) {
