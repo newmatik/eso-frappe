@@ -92,7 +92,7 @@ frappe.views.CommunicationComposer = class {
 				fieldname: "use_html",
 				default: 0,
 				onchange: () => {
-					me.on_use_html_change();
+					me.on_use_html_toggle();
 				},
 			},
 			{
@@ -108,7 +108,7 @@ frappe.views.CommunicationComposer = class {
 				get_query: () => {
 					return {
 						filters: {
-							use_html: me.dialog.get_value("use_html") ? 1 : 0,
+							use_html: me.dialog.get_value("use_html"),
 						},
 					};
 				},
@@ -129,7 +129,7 @@ frappe.views.CommunicationComposer = class {
 			{
 				label: __("Message"),
 				fieldtype: "Text Editor",
-				fieldname: "content_text_editor",
+				fieldname: "content",
 				onchange: frappe.utils.debounce(this.save_as_draft.bind(this), 300),
 			},
 			{
@@ -448,7 +448,7 @@ frappe.views.CommunicationComposer = class {
 				label: __("Clear & Add Template"),
 				description: __("Clear the email message and add the template"),
 				action: () => {
-					me.set_content_value("");
+					me.set_email_content("");
 					add_template();
 				},
 			},
@@ -523,7 +523,7 @@ frappe.views.CommunicationComposer = class {
 		if (this.message) return;
 
 		const last_edited = this.get_last_edited_communication();
-		if (!last_edited.content_text_editor && !last_edited.content_html) return;
+		if (!last_edited.content && !last_edited.content_html) return;
 
 		// prevent re-triggering of email template
 		if (last_edited.email_template) {
@@ -746,7 +746,7 @@ frappe.views.CommunicationComposer = class {
 
 	save_as_draft() {
 		if (this.dialog && this.frm) {
-			let message = this.get_content_value();
+			let message = this.get_email_content();
 			message = message.split(separator_element)[0];
 			localforage.setItem(this.frm.doctype + this.frm.docname, message).catch((e) => {
 				if (e) {
@@ -805,7 +805,7 @@ frappe.views.CommunicationComposer = class {
 				cc: form_values.cc,
 				bcc: form_values.bcc,
 				subject: form_values.subject,
-				content: me.get_content_value(),
+				content: me.get_email_content(),
 				doctype: me.doc.doctype,
 				name: me.doc.name,
 				send_email: 1,
@@ -900,7 +900,7 @@ frappe.views.CommunicationComposer = class {
 			message += this.get_earlier_reply();
 		}
 
-		await this.set_content_value(message);
+		await this.set_email_content(message);
 	}
 
 	async get_signature(sender_email) {
@@ -999,24 +999,22 @@ frappe.views.CommunicationComposer = class {
 
 	get_content_field() {
 		const use_html = this.dialog.get_value("use_html");
-		return use_html
-			? this.dialog.fields_dict.content_html
-			: this.dialog.fields_dict.content_text_editor;
+		return use_html ? this.dialog.fields_dict.content_html : this.dialog.fields_dict.content;
 	}
 
-	get_content_value() {
+	get_email_content() {
 		return this.get_content_field().get_value() || "";
 	}
 
-	set_content_value(value) {
+	set_email_content(value) {
 		return this.get_content_field().set_value(value);
 	}
 
-	on_use_html_change() {
+	on_use_html_toggle() {
 		const use_html = this.dialog.get_value("use_html");
 
-		this.dialog.set_df_property("content_text_editor", "hidden", use_html ? 1 : 0);
-		this.dialog.set_df_property("content_html", "hidden", use_html ? 0 : 1);
+		this.dialog.set_df_property("content", "hidden", use_html ? 1 : 0);
+		this.dialog.set_df_property("content_html", "hidden", !use_html ? 1 : 0);
 
 		this.dialog.set_value("email_template", "");
 	}
