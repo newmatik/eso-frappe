@@ -6,10 +6,16 @@ function get_url(socket, path) {
 		path = "";
 	}
 	let url = socket.request.headers.origin;
+	// Only modify the URL for local development (when origin includes a non-standard port)
+	// For production with nginx proxy, use the origin as-is
 	if (conf.developer_mode) {
-		let [protocol, host, port] = url.split(":");
-		port = conf.webserver_port;
-		url = `${protocol}:${host}:${port}`;
+		let parts = url.split(":");
+		// Only add webserver_port if the URL already has a port (local dev scenario)
+		// e.g., http://localhost:8001 has 3 parts when split by ":"
+		if (parts.length > 2) {
+			let [protocol, host] = parts;
+			url = `${protocol}:${host}:${conf.webserver_port}`;
+		}
 	}
 	return url + path;
 }

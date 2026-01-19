@@ -6,12 +6,18 @@ const conf = get_conf();
 function authenticate_with_frappe(socket, next) {
 	let namespace = socket.nsp.name;
 	namespace = namespace.slice(1, namespace.length); // remove leading `/`
+	
+	console.log(`[Auth] Authenticating socket, namespace: ${namespace}, site_name: ${get_site_name(socket)}`);
+	console.log(`[Auth] Host: ${socket.request.headers.host}, Origin: ${socket.request.headers.origin}`);
 
 	if (namespace != get_site_name(socket)) {
+		console.log(`[Auth] FAILED: Invalid namespace - expected ${get_site_name(socket)}, got ${namespace}`);
 		next(new Error("Invalid namespace"));
+		return;
 	}
 
 	if (get_hostname(socket.request.headers.host) != get_hostname(socket.request.headers.origin)) {
+		console.log(`[Auth] FAILED: Invalid origin - host: ${get_hostname(socket.request.headers.host)}, origin: ${get_hostname(socket.request.headers.origin)}`);
 		next(new Error("Invalid origin"));
 		return;
 	}
@@ -61,9 +67,11 @@ function authenticate_with_frappe(socket, next) {
 			socket.user = message.user;
 			socket.user_type = message.user_type;
 			socket.installed_apps = message.installed_apps;
+			console.log(`[Auth] SUCCESS: User ${message.user} (${message.user_type}) authenticated`);
 			next();
 		})
 		.catch((e) => {
+			console.log(`[Auth] FAILED: Unauthorized - ${e}`);
 			next(new Error(`Unauthorized: ${e}`));
 		});
 }

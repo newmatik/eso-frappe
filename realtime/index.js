@@ -66,7 +66,13 @@ function get_app_handlers(app) {
 	return handler;
 }
 
-realtime.on("connection", on_connection);
+realtime.on("connection", (socket) => {
+	console.log(`[Socket.IO] Client connected: ${socket.id}, user: ${socket.user}, namespace: ${socket.nsp.name}`);
+	on_connection(socket);
+	socket.on("disconnect", () => {
+		console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
+	});
+});
 // =======================
 
 // Consume events sent from python via redis pub-sub channel.
@@ -74,13 +80,17 @@ const subscriber = get_redis_subscriber();
 
 (async () => {
 	await subscriber.connect();
+	console.log("[Redis] Subscriber connected to redis_queue");
 	subscriber.subscribe("events", (message) => {
+		console.log("[Redis] Received event:", message.substring(0, 200));
 		message = JSON.parse(message);
 		let namespace = "/" + message.namespace;
 		if (message.room) {
+			console.log(`[Socket.IO] Emitting '${message.event}' to room '${message.room}' in namespace '${namespace}'`);
 			io.of(namespace).to(message.room).emit(message.event, message.message);
 		} else {
 			// publish to ALL sites only used for things like build event.
+			console.log(`[Socket.IO] Broadcasting '${message.event}' to all`);
 			realtime.emit(message.event, message.message);
 		}
 	});

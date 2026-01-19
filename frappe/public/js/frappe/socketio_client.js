@@ -9,10 +9,12 @@ class RealTimeClient {
 	}
 
 	on(event, callback) {
-		if (this.socket) {
-			this.connect();
-			this.socket.on(event, callback);
+		if (!this.socket) {
+			console.warn("Socket.io not initialized. Event listener for", event, "not attached.");
+			return;
 		}
+		this.connect();
+		this.socket.on(event, callback);
 	}
 
 	off(event, callback) {
@@ -29,6 +31,10 @@ class RealTimeClient {
 	}
 
 	emit(event, ...args) {
+		if (!this.socket) {
+			console.warn("Socket.io not initialized. Cannot emit event:", event);
+			return;
+		}
 		this.connect();
 		this.socket.emit(event, ...args);
 	}
@@ -174,10 +180,10 @@ class RealTimeClient {
 		this.emit("doc_close", doctype, docname);
 	}
 	setup_listeners() {
-		this.socket.on("task_status_change", function (data) {
+		this.socket.on("task_status_change", (data) => {
 			this.process_response(data, data.status.toLowerCase());
 		});
-		this.socket.on("task_progress", function (data) {
+		this.socket.on("task_progress", (data) => {
 			this.process_response(data, "progress");
 		});
 	}

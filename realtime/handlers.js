@@ -10,7 +10,7 @@ function frappe_handlers(socket) {
 	}
 
 	socket.has_permission = (doctype, name) => {
-		return new Promise((resolve) => {
+		return new Promise((resolve, reject) => {
 			socket
 				.frappe_request("/api/method/frappe.realtime.has_permission", {
 					doctype,
@@ -20,9 +20,14 @@ function frappe_handlers(socket) {
 				.then(({ message }) => {
 					if (message) {
 						resolve();
+					} else {
+						reject(new Error(`Permission denied for ${doctype}`));
 					}
 				})
-				.catch((err) => console.log("Can't check permissions", err));
+				.catch((err) => {
+					console.log("Can't check permissions", err);
+					reject(err);
+				});
 		});
 	};
 
@@ -31,8 +36,13 @@ function frappe_handlers(socket) {
 	});
 
 	socket.on("doctype_subscribe", function (doctype) {
+		console.log(`[Handler] doctype_subscribe request for: ${doctype}`);
 		socket.has_permission(doctype).then(() => {
-			socket.join(doctype_room(doctype));
+			let room = doctype_room(doctype);
+			socket.join(room);
+			console.log(`[Handler] Socket ${socket.id} joined room: ${room}`);
+		}).catch((err) => {
+			console.log(`[Handler] Permission denied for doctype: ${doctype}`, err);
 		});
 	});
 
