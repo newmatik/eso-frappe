@@ -788,6 +788,8 @@ def has_permission(doc, ptype=None, user=None):
 					)
 			else:
 				has_access = ref_doc.has_permission("read")
+				# This is a special case for user image field.
+				# This is to allow users to see the assignee's image in sidebar and list view.
 				if attached_to_doctype == "User" and doc.attached_to_field == "user_image":
 					has_access = True
 
