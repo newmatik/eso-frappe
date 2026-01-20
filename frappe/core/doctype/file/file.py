@@ -778,7 +778,6 @@ def has_permission(doc, ptype=None, user=None):
 			ref_doc = frappe.get_doc(attached_to_doctype, attached_to_name)
 
 			if ptype in ["write", "create", "delete"]:
-				has_access = ref_doc.has_permission("write")
 
 				if ptype == "delete" and not has_access:
 					frappe.throw(
@@ -789,6 +788,9 @@ def has_permission(doc, ptype=None, user=None):
 					)
 			else:
 				has_access = ref_doc.has_permission("read")
+				if attached_to_doctype == "User" and doc.attached_to_field == "user_image":
+					has_access = True
+
 		except frappe.DoesNotExistError:
 			# if parent doc is not created before file is created
 			# we cannot check its permission so we will use file's permission
