@@ -13,6 +13,7 @@ import frappe.utils.user
 from frappe import _
 from frappe.apps import get_default_path
 from frappe.core.doctype.activity_log.activity_log import add_authentication_log
+from frappe.desk.utils import slug
 from frappe.sessions import Session, clear_sessions, delete_session, get_expiry_in_seconds
 from frappe.translate import get_language
 from frappe.twofactor import (
@@ -22,8 +23,10 @@ from frappe.twofactor import (
 	should_run_2fa,
 )
 from frappe.utils import cint, date_diff, datetime, get_datetime, today
+from frappe.utils.deprecations import deprecation_warning
 from frappe.utils.password import check_password, get_decrypted_password
 from frappe.website.utils import get_home_page
+import re
 
 SAFE_HTTP_METHODS = frozenset(("GET", "HEAD", "OPTIONS"))
 UNSAFE_HTTP_METHODS = frozenset(("POST", "PUT", "DELETE", "PATCH"))
@@ -164,7 +167,31 @@ class LoginManager:
 			if not confirm_otp_token(self):
 				return False
 		frappe.form_dict.pop("pwd", None)
-		self.post_login()
+
+		login_validation = frappe.get_doc("Additional Login Validation")
+
+		if login_validation.enabled:
+			has_next_role = frappe.db.exists("Has Role", {"parent": self.user, "role": ["in", ["NEXT Super User", "Next Standard User"]]})
+
+			# Use frappe.get_all with ignore_permissions to bypass permission checks
+			email_domains = frappe.get_all("Excluded Domains for Login Validation",
+				filters={"parent": "Additional Login Validation"},
+				fields=["email_domain"],
+				ignore_permissions=True)
+
+			excluded_domains = "|".join(i["email_domain"] for i in email_domains)
+
+			if not re.search(excluded_domains, self.user):
+				if has_next_role:
+					frappe.msgprint("User Access Not Allowed, Kindly Redirect to Newmatik Portal.")
+					return False
+				else:
+					frappe.msgprint("User Access Not Allowed.")
+					return False
+			else:
+				self.post_login()
+		else:
+			self.post_login()
 
 	def post_login(self, session_end: str | None = None, audit_user: str | None = None):
 		self.run_trigger("on_login")
@@ -471,32 +498,37 @@ def validate_ip_address(user):
 	):
 		return True
 
-	user_info = frappe.get_cached_doc("User", user)
-	ip_list = user_info.get_restricted_ip_list()
+	from frappe.core.doctype.user.user import get_restricted_ip_list
 
+	# Only fetch required fields - for perf
+	user_fields = ["restrict_ip", "bypass_restrict_ip_check_if_2fa_enabled"]
+	user_info = (
+		frappe.get_cached_value("User", user, user_fields, as_dict=True)
+		if not frappe.flags.in_test
+		else frappe.db.get_value("User", user, user_fields, as_dict=True)
+	)
+	ip_list = get_restricted_ip_list(user_info)
 	if not ip_list:
 		return
 
-	check_request_ip()
-	for ip in ip_list:
-		if frappe.local.request_ip.startswith(ip):
-			return
-
+	system_settings = (
+		frappe.get_cached_doc("System Settings")
+		if not frappe.flags.in_test
+		else frappe.get_single("System Settings")
+	)
 	# check if bypass restrict ip is enabled for all users
-	bypass_restrict_ip_check = frappe.get_system_settings("bypass_restrict_ip_check_if_2fa_enabled")
+	bypass_restrict_ip_check = system_settings.bypass_restrict_ip_check_if_2fa_enabled
 
 	# check if two factor auth is enabled
-	if frappe.get_system_settings("enable_two_factor_auth") and not bypass_restrict_ip_check:
+	if system_settings.enable_two_factor_auth and not bypass_restrict_ip_check:
 		# check if bypass restrict ip is enabled for login user
 		bypass_restrict_ip_check = user_info.bypass_restrict_ip_check_if_2fa_enabled
 
-	if bypass_restrict_ip_check:
-		return
+	for ip in ip_list:
+		if frappe.local.request_ip.startswith(ip) or bypass_restrict_ip_check:
+			return
 
-	frappe.throw(
-		_("Access not allowed from this IP Address") + f": {frappe.local.request_ip}",
-		frappe.AuthenticationError,
-	)
+	frappe.throw(_("Access not allowed from this IP Address"), frappe.AuthenticationError)
 
 
 def get_login_attempt_tracker(key: str, raise_locked_exception: bool = True):
@@ -629,21 +661,20 @@ def validate_auth():
 	Authenticate and sets user for the request.
 	"""
 	authorization_header = frappe.get_request_header("Authorization", "").split(" ")
-	authorization_type = authorization_header[0].lower()
+
 	if len(authorization_header) == 2:
-		validate_oauth(authorization_header)
-		validate_auth_via_api_keys(authorization_header)
+		authorization_type = authorization_header[0].lower()
+		if authorization_type == "next":
+			validate_jwt(authorization_header)
+		else:
+			validate_oauth(authorization_header)
+			validate_auth_via_api_keys(authorization_header)
 
-	elif authorization_type == "next":
-		validate_jwt(authorization_header)
-
-	else:
-		validate_auth_via_hooks()
-
+	validate_auth_via_hooks()
 
 	# If login via bearer, basic or keypair didn't work then authentication failed and we
 	# should terminate here.
-	if len(authorization_header) == 2 and frappe.session.user in ("", "Guest"):
+	if len(authorization_header) == 2 and frappe.session.user in ("", "Guest") and authorization_header[0].lower() != "next":
 		raise frappe.AuthenticationError
 
 
