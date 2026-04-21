@@ -187,7 +187,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				</button>`
 			)
 				.click(() => this.show_restrictions(match_rules_list))
-				.appendTo(this.page.page_form);
+				.appendTo(this.page.page_form.find(".filter-section"));
 		}
 	}
 
@@ -285,8 +285,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 	set_primary_action() {
 		if (this.can_create && !frappe.boot.read_only) {
 			const doctype_name = __(frappe.router.doctype_layout) || __(this.doctype);
-			this.page.set_primary_action(
-				__("Add {0}", [doctype_name], "Primary action in list view"),
+			const add_button_label = __("Add {0}", [doctype_name], "Primary action in list view");
+			const create_button = this.page.set_primary_action(
+				add_button_label,
 				() => {
 					if (this.settings.primary_action) {
 						this.settings.primary_action();
@@ -296,8 +297,25 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				},
 				"add"
 			);
+			if (frappe.is_mobile()) {
+				create_button.append(__("Add"));
+			} else {
+				this._trim_primary_action_if_overflow(create_button, add_button_label);
+			}
 		} else {
 			this.page.clear_primary_action();
+		}
+	}
+
+	_trim_primary_action_if_overflow(btn, add_button_label) {
+		const container = this.page.wrapper.find(".page-head-content")[0];
+		if (!container || !btn[0]) return;
+		const containerRect = container.getBoundingClientRect();
+		const btnRect = btn[0].getBoundingClientRect();
+		if (btnRect.right > containerRect.right) {
+			const short_label = __("Add");
+			btn.attr("title", add_button_label).tooltip();
+			btn.find("span").text(short_label);
 		}
 	}
 
@@ -680,6 +698,8 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 		let me = this;
 		let $count = this.get_count_element();
+		$count.css("white-space", "nowrap");
+
 		this.get_count_str().then((count) => {
 			$count.html(`<span>${count}</span>`);
 			if (
@@ -694,7 +714,6 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				);
 				$count.tooltip({ delay: { show: 600, hide: 100 }, trigger: "hover" });
 				$count.css("cursor", "pointer");
-				$count.css("white-space", "nowrap");
 				$count.on("click", () => {
 					me.count_upper_bound = 0;
 					$count.off("click");
@@ -813,9 +832,13 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 			let col = this.columns[i];
 
 			if (frappe.is_mobile() && col.type == "Field" && [3, 4].includes(i)) {
-				left_html += `<div class="mobile-layout ${
-					i == 3 ? "mobile-layout-seperator" : ""
-				}">${this.get_column_html(col, doc, true)}</div>`;
+				const no_seperator_class = !doc[col?.df?.fieldname] ? "no-seperator" : "";
+				left_html += `<div
+					class="mobile-layout ${no_seperator_class} ${i == 3 ? "mobile-layout-seperator" : ""}"
+					${no_seperator_class ? "style='padding-left: var(--margin-sm);'" : ""}
+					>
+					${this.get_column_html(col, doc, true)}
+				</div>`;
 			} else {
 				left_html += this.get_column_html(col, doc, false);
 			}
@@ -938,7 +961,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 
 			if (df.fieldtype === "Image") {
 				html = df.options
-					? `<img src="${doc[df.options]}"
+					? `<img src="${frappe.utils.escape_html(doc[df.options])}"
 					style="max-height: 30px; max-width: 100%;">`
 					: `<div class="missing-image small">
 						${frappe.utils.icon("restriction")}
@@ -959,6 +982,11 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				html = `<span class="ellipsis">
 					${_value}
 				</span>`;
+			} else if (df.fieldtype === "Percent") {
+				return `<div style="width: 100%;"
+					title="${__(label)}: ${frappe.utils.escape_html(_value)}">
+					${format()}
+				</div>`;
 			} else {
 				html = `<a class="${filterable} ellipsis"
 					data-filter="${fieldname},=,${frappe.utils.escape_html(value)}">
@@ -1068,7 +1096,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		}
 	}
 
-	get_tags_html(user_tags, limit, colored = false) {
+	get_tags_html(user_tags, limit = null, colored = false) {
 		let get_tag_html = (tag) => {
 			let color = "",
 				style = "";
@@ -1081,11 +1109,12 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 				return `<div class="tag-pill ellipsis" title="${tag}" style="${style}">${tag}</div>`;
 			}
 		};
-		return user_tags
-			.split(",")
-			.slice(1, limit + 1)
-			.map(get_tag_html)
-			.join("");
+		user_tags = (user_tags || "").split(",");
+		if (limit !== null) {
+			// if there is a limit apply it
+			user_tags = user_tags.slice(0, limit);
+		}
+		return user_tags.map(get_tag_html).join("");
 	}
 
 	get_meta_html(doc) {
@@ -1218,7 +1247,9 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 					count_without_children !== current_count ? count_without_children : undefined;
 
 				let count_str;
-				if (this.total_count === this.count_upper_bound) {
+				if (current_count > this.total_count) {
+					count_str = `${format_number(current_count, null, 0)}+`;
+				} else if (this.total_count === this.count_upper_bound) {
 					count_str = `${format_number(this.total_count - 1, null, 0)}+`;
 				} else if (this.total_count == null) {
 					count_str = "??";
@@ -1981,7 +2012,7 @@ frappe.views.ListView = class ListView extends frappe.views.BaseList {
 		}
 
 		items.push({
-			label: __("Edit Filters", null, "Edit filters of List View"),
+			label: __("Customize Quick Filters", null, "Customize qucik filters of List View"),
 			action: () => {
 				this.make_group_by_fields_modal();
 			},

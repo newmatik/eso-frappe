@@ -15,26 +15,24 @@ dependencies = [
     "filetype~=1.2.0",
     "GitPython~=3.1.45",
     "Jinja2~=3.1.6",
-    "Pillow~=12.0.0",
-    "PyJWT~=2.10.1",
+    "Pillow~=12.1.1",
+    "PyJWT~=2.12.1",
     # We depend on internal attributes,
     # do NOT add loose requirements on PyMySQL versions.
     "PyMySQL==1.1.2",
-    "pypdf==6.6.2",
+    "pypdf==6.9.2",
     "PyPika @ git+https://github.com/frappe/pypika@2c50e6142b2d61d2d243e466fdd5dc03b3d918f2",
     "mysqlclient==2.2.7",
     "PyQRCode~=1.2.1",
     "PyYAML~=6.0.3",
     "RestrictedPython~=8.1",
     "WeasyPrint==68.0",
-    # we don't use tinycss2 directly, but pinned to ensure compatibility with WeasyPrint and bleach
-    "tinycss2~=1.5.1,<1.6",
     "pydyf==0.12.1",
-    "Werkzeug==3.1.5",
+    "Werkzeug==3.1.6",
     "Whoosh~=2.7.4",
     "beautifulsoup4~=4.13.5",
-    "bleach-allowlist~=1.0.3",
     "bleach~=6.3.0",
+    "bleach-allowlist~=1.0.3",
     "chardet~=5.2.0",
     "croniter~=6.0.0",
     "cryptography~=46.0.3",
@@ -46,8 +44,9 @@ dependencies = [
     "ldap3~=2.9.1",
     "markdown2~=2.5.4",
     "MarkupSafe~=3.0.3",
+    "nh3~=0.3.2",
     "num2words~=0.5.14",
-    "oauthlib~=3.2.2",
+    "oauthlib~=3.3.1",
     "openpyxl~=3.1.5",
     "orjson~=3.11.5",
     "passlib~=1.7.4",
@@ -56,7 +55,7 @@ dependencies = [
     "premailer~=3.10.0",
     "psutil~=7.0.0",
     "psycopg2-binary~=2.9.11",
-    "pyOpenSSL~=25.3.0",
+    "pyOpenSSL~=26.0.0",
     "pydantic~=2.12.5",
     "pyotp~=2.9.0",
     "python-dateutil~=2.9.0.post0",
@@ -65,7 +64,7 @@ dependencies = [
     "redis~=7.1.0",
     "hiredis~=3.3.0",
     "requests-oauthlib~=2.0.0",
-    "requests~=2.32.5",
+    "requests~=2.33.0",
     # We depend on internal attributes of RQ.
     # Do NOT add loose requirements on RQ versions.
     # Audit the code changes w.r.t. background_jobs.py before updating.
@@ -83,9 +82,9 @@ dependencies = [
     "zxcvbn~=4.5.0",
     "markdownify~=1.2.2",
     # integration dependencies
-    "google-api-python-client~=2.172.0",
-    "google-auth-oauthlib~=1.2.2",
-    "google-auth~=2.40.3",
+    "google-api-python-client~=2.188.0",
+    "google-auth-oauthlib~=1.2.4",
+    "google-auth~=2.48.0",
     "posthog~=5.0.0",
     "vobject~=0.9.9",
     "pycountry~=24.6.1",
@@ -93,8 +92,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://frappeframework.com/"
+Homepage = "https://frappe.io/framework"
 Repository = "https://github.com/frappe/frappe.git"
+Documentation = "https://docs.frappe.io/framework"
 "Bug Reports" = "https://github.com/frappe/frappe/issues"
 
 [project.optional-dependencies]
@@ -108,7 +108,6 @@ dev = [
     "types-PyYAML",
     "types-Pygments",
     "types-beautifulsoup4",
-    "types-bleach",
     "types-cffi",
     "types-colorama",
     "types-croniter",

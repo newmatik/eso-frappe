@@ -2,12 +2,12 @@
     --desktop-blur: blur(10.2px);
     --desktop-modal-width: 590px;
     --desktop-modal-height: 450px;
-    --folder-thumbnail-icon-height: 12px;
+    --folder-thumbnail-icon-height: 16px;
     --desktop-icon-dimension: 54px;
     --folder-icon-background-color: var(--surface-gray-1);
     --desktop-modal-radius: 30px;
     --desktop-icon-line-height: 115%;
-    --navbar-height: 52px;
+    --desktop-navbar-height: 52px;
 }
 [data-theme="dark"]{
     --folder-icon-background-color: #2b2b2b;
@@ -28,7 +28,7 @@
     width: 100%;
     padding: 10px 20px 10px 20px;
     box-sizing: border-box;
-    height: var(--navbar-height);
+    height: var(--desktop-navbar-height);
     position: sticky;
     top: 0px;
     z-index: 1030;
@@ -80,13 +80,24 @@
     margin-top: 60px;
     padding: 20px;
 }
+.icons-container:has(.sidebar-card){
+    margin-top: 20px;
+    .sidebar-card{
+        gap: 6px;
+    }
+}
 .modal
-.modal-body .icons-container,.folder-icon .icons-container {
+.modal-body .icons-container, .folder-icon .icons-container {
     padding:0px;
     margin: 0px;
     height: 100%;
     overflow: auto;
 }
+
+.folder-icon .icons-container {
+    overflow: hidden;
+}
+
 .icons{
 	gap: 16px;
 	display: grid;
@@ -103,6 +114,10 @@
     gap: 12px;
     padding: 13px 16px 12px 16px;
     position: relative;
+    border-radius: 20px;
+    border-width: 1px;
+    border-style: dashed;
+    border-color: transparent;
 }
 .desktop-icon.desktop-edit-mode .hide-button {
     display: flex;
@@ -123,6 +138,7 @@
 .icon-container{
     padding: 10px;
     border-radius: 16px;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -141,14 +157,12 @@
     text-wrap: nowrap;
     display: flex;
     justify-content: space-between;
-    width: 95px;
     height: 35px;
     flex-direction: column;
 }
 .icon-title{
     font-weight: var(--weight-semibold);
     font-size: var(--text-md);
-    max-width: 95px;
     overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -183,7 +197,6 @@
         & .modal-content {
             top: 120px;
             border-radius: var(--desktop-modal-radius);
-            align-items: center;
         }
     }
 }
@@ -197,12 +210,9 @@
     width: var(--desktop-modal-width);
     height: var(--desktop-modal-height);
     padding: 24px 23px !important;
+    width: fit-content;
     & .icons{
         gap: 0px 0px;
-    }
-    & .icons:has(.desktop-edit-mode){
-        margin-top: 4px;
-        gap: 6px 6px;
     }
     .icon-container{
         min-height: var(--desktop-icon-dimension);
@@ -254,13 +264,13 @@
     position: absolute;
 }
 
-.folder-icon{
-    border-radius: 10px;
-   background-color: var(--folder-icon-background-color) !important;
+.folder-icon {
+    border-radius: 16px;
+    background-color: var(--folder-icon-background-color) !important;
     box-shadow: 0px 0px 1px 0px rgba(0, 0, 0, 0.14);
     padding: 7px;
     align-items: normal;
-    box-shadow: 0 0 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.14);
+    /* box-shadow: 0 0 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.14); */
     & .icons{
         gap: 2.1px;
         margin-top: 0px;
@@ -273,7 +283,7 @@
                 height: var(--folder-thumbnail-icon-height);
                 width: var(--folder-thumbnail-icon-height);
                 padding: 0px;
-                border-radius: 2px;
+                border-radius: 4px;
                 & .icon{
                     width: 5px;
                     height: 5px;
@@ -343,8 +353,7 @@
 }
 
 .desktop-edit-mode{
-    border: 1px dashed var(--outline-gray-2);
-    border-radius: 20px;
+    border-color: var(--outline-gray-2);
 }
 .edit-mode-buttons{
     display: none;
@@ -364,7 +373,7 @@
   :root {
     --desktop-icon-dimension: 50px;
     --desktop-icon-container: 117px;
-    --folder-thumbnail-icon-height:17px;
+    --folder-thumbnail-icon-height:15px;
   }
 
   .desktop-container {
@@ -443,6 +452,12 @@
         }
 }
 
+.icons-container {
+    > .icons-container {
+        padding: 0px;
+    }
+}
+
 .desktop-edit{
     width: 36px;
     height: 36px;
@@ -474,7 +489,7 @@
 }
 .desktop-pane{
     position: absolute;
-    top: var(--navbar-height);
+    top: var(--desktop-navbar-height);
     right: 0px;
     width: 300px;
     border-left: 1px solid var(--border-color);

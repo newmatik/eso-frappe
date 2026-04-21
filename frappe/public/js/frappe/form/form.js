@@ -608,6 +608,8 @@ frappe.ui.form.Form = class FrappeForm {
 					toolbar: this.toolbar,
 				});
 				this.sidebar.make();
+			} else {
+				this.page.sidebar.hide();
 			}
 
 			// clear layout message
@@ -657,7 +659,7 @@ frappe.ui.form.Form = class FrappeForm {
 	configure_breadcrumb_width() {
 		let el = this.page.page_actions[0];
 		const rect = el.getBoundingClientRect();
-		let is_outside = rect.right > document.documentElement.clientWidth;
+		let is_outside = cint(rect.right) > cint(document.documentElement.clientWidth);
 
 		if (is_outside) {
 			// check if the default actions are outside of the screen
@@ -780,6 +782,7 @@ frappe.ui.form.Form = class FrappeForm {
 		this.show_submit_message();
 		this.clear_custom_buttons();
 		this.show_web_link();
+		this.show_report_bug_link();
 		this.show_workflow_read_only_banner();
 	}
 
@@ -1277,6 +1280,17 @@ frappe.ui.form.Form = class FrappeForm {
 		}
 	}
 
+	show_report_bug_link() {
+		if (this.meta.beta) {
+			this.add_web_link(
+				"https://github.com/frappe/" +
+					frappe.boot.module_app[frappe.scrub(this.meta.module)] +
+					"/issues/new",
+				__("Report bug")
+			);
+		}
+	}
+
 	add_web_link(path, label) {
 		label = __(label) || __("See on Website");
 		this.web_link = this.sidebar
@@ -1340,7 +1354,11 @@ frappe.ui.form.Form = class FrappeForm {
 		frappe.re_route[frappe.router.get_sub_path()] = `${encodeURIComponent(
 			frappe.router.slug(this.doctype)
 		)}/${encodeURIComponent(name)}`;
-		!frappe._from_link && frappe.set_route("Form", this.doctype, name);
+
+		// Skip routing only when the document is created from a Form view's Link field
+		if (!frappe._from_link?.field_obj?.frm) {
+			frappe.set_route("Form", this.doctype, name);
+		}
 	}
 
 	// ACTIONS
@@ -1559,15 +1577,10 @@ frappe.ui.form.Form = class FrappeForm {
 			var scroll_to = frappe.route_options.scroll_to;
 			delete frappe.route_options.scroll_to;
 
-			var selector = [];
-			for (var key in scroll_to) {
-				var value = scroll_to[key];
-				selector.push(repl('[data-%(key)s="%(value)s"]', { key: key, value: value }));
-			}
-
-			selector = $(selector.join(" "));
-			if (selector.length) {
-				frappe.utils.scroll_to(selector);
+			if (this.scroll_to_field(scroll_to)) {
+				const url = new URL(window.location);
+				url.searchParams.delete("scroll_to");
+				history.replaceState(null, null, url);
 			}
 		} else if (window.location.hash) {
 			if ($(window.location.hash).length) {

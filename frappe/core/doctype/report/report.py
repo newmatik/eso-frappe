@@ -93,14 +93,30 @@ class Report(Document):
 		doc.prepared_report = 0
 
 	def on_trash(self):
-		if (
-			self.is_standard == "Yes"
-			and not cint(getattr(frappe.local.conf, "developer_mode", 0))
-			and not frappe.flags.in_migrate
-			and not frappe.flags.in_patch
-		):
-			frappe.throw(_("You are not allowed to delete Standard Report"))
+		if self.is_standard == "Yes":
+			if (
+				not cint(getattr(frappe.local.conf, "developer_mode", 0))
+				and not frappe.flags.in_migrate
+				and not frappe.flags.in_patch
+			):
+				frappe.throw(_("You are not allowed to delete Standard Report"))
+
+			if frappe.conf.developer_mode and not frappe.flags.in_test:
+				frappe.db.after_commit(self.delete_report_folder)
+
 		delete_custom_role("report", self.name)
+
+	def clear_cache(self):
+		self.update_report_cache()
+		return super().clear_cache()
+
+	def update_report_cache(self):
+		frappe.cache.delete_key("bootinfo")
+
+	def delete_report_folder(self):
+		from frappe.modules.export_file import delete_folder
+
+		delete_folder(self.module, "Report", self.name)
 
 	def get_permission_log_options(self, event=None):
 		return {"fields": ["roles"]}

@@ -5,6 +5,7 @@ frappe.ui.form.AssignTo = class AssignTo {
 	constructor(opts) {
 		$.extend(this, opts);
 		this.btn = this.parent.find(".add-assignment-btn").on("click", () => this.add());
+		this.parent.find(".add-assignment-label").on("click", () => this.add());
 		this.btn_wrapper = this.btn.parent();
 
 		this.refresh();
@@ -14,6 +15,13 @@ frappe.ui.form.AssignTo = class AssignTo {
 			this.parent.toggle(false);
 			return;
 		}
+
+		let docinfo = this.frm.get_docinfo?.();
+		if (!docinfo || !docinfo.assignments) {
+			this.parent.toggle(false);
+			return;
+		}
+
 		this.parent.toggle(true);
 		this.render(this.frm.get_docinfo().assignments);
 	}
@@ -277,8 +285,8 @@ frappe.ui.form.AssignmentClass = class AssignmentClass {
 		const row = $(`
 			<div class="dialog-assignment-row" data-user="${assignment}">
 				<div class="assignee">
-					${frappe.avatar(assignment)}
-					${frappe.user.full_name(assignment)}
+					${frappe.avatar(assignment, "avatar-smaller")}
+					<span>${frappe.user.full_name(assignment)}</span>
 				</div>
 				<div class="btn-group btn-group-sm" role="group" aria-label="Actions">
 				</div>
@@ -289,8 +297,8 @@ frappe.ui.form.AssignmentClass = class AssignmentClass {
 
 		if (assignment === frappe.session.user) {
 			btn_group.append(`
-				<button type="button" class="btn complete-btn" title="${__("Done")}">
-					${frappe.utils.icon("tick", "xs")}
+				<button type="button" class="btn btn-xs complete-btn" title="${__("Done")}">
+					${frappe.utils.icon("check")}
 				</button>
 			`);
 			btn_group.find(".complete-btn").click(() => {
@@ -316,7 +324,7 @@ frappe.ui.form.AssignmentClass = class AssignmentClass {
 
 		if (assignment === frappe.session.user || this.frm.perm[0].write) {
 			btn_group.append(`
-				<button type="button" class="btn remove-btn" title="${__("Cancel")}">
+				<button type="button" class="btn btn-xs remove-btn" title="${__("Cancel")}">
 				${frappe.utils.icon("x")}
 				</button>
 			`);

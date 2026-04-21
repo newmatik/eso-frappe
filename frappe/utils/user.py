@@ -42,6 +42,7 @@ class UserPermissions:
 		self.can_print = []
 		self.can_email = []
 		self.allow_modules = []
+		self.permitted_modules = []
 		self.in_create = []
 		self.setup_user()
 
@@ -143,7 +144,8 @@ class UserPermissions:
 						no_list_view_link.append(dt)
 					else:
 						self.can_read.append(dt)
-
+						if dtp["module"] not in self.permitted_modules:
+							self.permitted_modules.append(dtp["module"])
 			if p.get("submit"):
 				self.can_submit.append(dt)
 
@@ -241,12 +243,15 @@ class UserPermissions:
 			self.build_permissions()
 
 		if d.get("default_workspace"):
-			workspace = frappe.get_cached_doc("Workspace", d.default_workspace)
-			d.default_workspace = {
-				"name": workspace.name,
-				"public": workspace.public,
-				"title": workspace.title,
-			}
+			try:
+				workspace = frappe.get_cached_doc("Workspace", d.default_workspace)
+				d.default_workspace = {
+					"name": workspace.name,
+					"public": workspace.public,
+					"title": workspace.title,
+				}
+			except frappe.DoesNotExistError:
+				d.default_workspace = None
 
 		d.name = self.name
 		d.onboarding_status = frappe.parse_json(d.onboarding_status)
@@ -269,6 +274,7 @@ class UserPermissions:
 			"can_import",
 			"can_print",
 			"can_email",
+			"permitted_modules",
 		):
 			d[key] = list(set(getattr(self, key)))
 

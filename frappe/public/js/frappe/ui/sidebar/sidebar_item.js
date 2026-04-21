@@ -36,7 +36,7 @@ frappe.ui.sidebar_item.TypeLink = class SidebarItem {
 				if (workspaces.public) {
 					path = "/desk/" + frappe.router.slug(this.item.link_to);
 				} else {
-					path = "/desk/private/" + frappe.router.slug(workspaces.title);
+					path = "/desk/private/" + frappe.router.slug(this.item.link_to);
 				}
 
 				if (this.item.route) {
@@ -68,9 +68,7 @@ frappe.ui.sidebar_item.TypeLink = class SidebarItem {
 				path = frappe.utils.generate_route(args);
 			}
 		}
-		if (path) {
-			return encodeURI(path);
-		}
+		return path;
 	}
 	prepare() {}
 	make() {
@@ -177,6 +175,9 @@ frappe.ui.sidebar_item.TypeSectionBreak = class SectionBreakSidebarItem extends 
 		this.full_template = $(this.wrapper);
 	}
 	make() {
+		if (this.nested_items.length == 0 && !frappe.app.sidebar.editor.edit_mode) {
+			return;
+		}
 		super.make();
 		if (!this.item.nested_items || this.item.nested_items.length == 0) return;
 		this.add_items();
@@ -221,7 +222,6 @@ frappe.ui.sidebar_item.TypeSectionBreak = class SectionBreakSidebarItem extends 
 			} else {
 				$(me.wrapper.find(".section-break")).addClass("hidden");
 				$(me.wrapper.find(".divider")).removeClass("hidden");
-				$(me.wrapper).removeAttr("data-original-title");
 				me.old_state = me.collapsed;
 				me.open();
 				if (me.item.indent) {

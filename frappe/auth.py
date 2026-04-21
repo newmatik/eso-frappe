@@ -158,7 +158,9 @@ class LoginManager:
 		self.authenticate(user=user, pwd=pwd)
 		if self.force_user_to_reset_password():
 			doc = frappe.get_doc("User", self.user)
-			frappe.local.response["redirect_to"] = doc.reset_password(send_email=False, password_expired=True)
+			frappe.local.response["redirect_to"] = doc._reset_password(
+				send_email=False, password_expired=True
+			)
 			frappe.local.response["message"] = "Password Reset"
 			return False
 
@@ -228,7 +230,7 @@ class LoginManager:
 			frappe.local.cookie_manager.set_cookie("system_user", "yes", deduplicate=True)
 			if not resume:
 				frappe.local.response["message"] = "Logged In"
-				frappe.local.response["home_page"] = get_default_path() or "/desk"
+				frappe.local.response["home_page"] = get_home_page() or "/desk"
 
 		if not resume:
 			frappe.response["full_name"] = self.full_name

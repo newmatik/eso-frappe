@@ -1386,7 +1386,7 @@ Object.assign(frappe.utils, {
 		return icon_html.get(0).outerHTML;
 	},
 	desktop_pallete: {
-		blue: "#0981E3",
+		blue: "#0289F7",
 		gray: "#7B808A",
 	},
 	icon(
@@ -1573,6 +1573,12 @@ Object.assign(frappe.utils, {
 				route = item.name;
 			} else if (type === "dashboard") {
 				route = `dashboard-view/${item.name}`;
+			} else if (type == "workspace") {
+				if (item.public) {
+					route = frappe.router.slug(item.name);
+				} else {
+					route = "private/" + frappe.router.slug(item.name);
+				}
 			}
 		} else {
 			route = item.route;
@@ -2182,5 +2188,40 @@ Object.assign(frappe.utils, {
 			links.push({ is_divider: true });
 		}
 		return links;
+	},
+	eval_expression(value, number_format) {
+		if (typeof value === "string") {
+			const parsed_components = value.match(/[^\d.,]+|[\d.,]+/g);
+			var parsed_value = value;
+			if (parsed_components !== null) {
+				parsed_value = parsed_components
+					.map((v) => {
+						return isNaN(parseFloat(v)) ? v : flt(v, null, number_format);
+					})
+					.join("");
+			}
+			if (parsed_value.match(/^[0-9+\-/*.() ]+$/)) {
+				// If it is a string containing operators
+				try {
+					return (0, eval)(parsed_value);
+				} catch (e) {
+					// bad expression
+					return value;
+				}
+			}
+		}
+		return value;
+	},
+	get_installed_apps() {
+		return frappe.boot.app_data.map((app) => {
+			return app.app_name;
+		});
+	},
+	is_sub_array(big, small) {
+		let i = 0;
+		for (let num of big) {
+			if (num === small[i]) i++;
+		}
+		return i === small.length;
 	},
 });

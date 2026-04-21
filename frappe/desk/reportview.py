@@ -519,8 +519,11 @@ def get_field_info(fields, doctype):
 		except ValueError:
 			# handles aggregate functions
 			parenttype = doctype
-			fieldname = key.split("(", 1)[0]
-			fieldname = fieldname[0].upper() + fieldname[1:]
+			if isinstance(key, dict):
+				fieldname = next(k for k in key if k != "as")
+			else:
+				fieldname = key.split("(", 1)[0]
+			fieldname = fieldname.capitalize()
 
 		parenttype = parenttype or doctype
 
@@ -579,8 +582,11 @@ def handle_duration_fieldtype_values(doctype, data, fields):
 	return data
 
 
-def parse_field(field: str) -> tuple[str | None, str]:
+def parse_field(field: str | dict) -> tuple[str | None, str]:
 	"""Parse a field into parenttype and fieldname."""
+	if isinstance(field, dict):  # for aggregates via qb
+		raise ValueError
+
 	key = field.split(" as ", 1)[0]
 
 	if key.startswith(("count(", "sum(", "avg(")):
@@ -698,14 +704,13 @@ def get_stats(stats, doctype, filters=None):
 				results[column] = scrub_user_tags(tag_count)
 				no_tag_count = frappe.get_list(
 					doctype,
-					fields=[column, {"COUNT": "1"}],
+					fields=[column, {"COUNT": "1", "as": "count"}],
 					filters=[*filters, [column, "in", ("", ",")]],
-					as_list=True,
 					group_by=column,
 					order_by=column,
 				)
 
-				no_tag_count = no_tag_count[0][1] if no_tag_count else 0
+				no_tag_count = no_tag_count[0].get("count", 0) if no_tag_count else 0
 
 				results[column].append([_("No Tags"), no_tag_count])
 			else:
@@ -794,19 +799,23 @@ def scrub_user_tags(tagcount):
 
 # used in building query in queries.py
 def get_match_cond(doctype, as_condition=True):
-	from frappe.model.db_query import DatabaseQuery
+	from frappe.database.query import Engine
 
-	cond = DatabaseQuery(doctype).build_match_conditions(as_condition=as_condition)
+	engine = Engine()
+	engine.get_query(doctype, db_query_compat=True)
+	cond = engine.build_match_conditions(as_condition=as_condition)
 	if not as_condition:
 		return cond
 
-	return ((" and " + cond) if cond else "").replace("%", "%%")
+	return ((" and (" + cond + ")") if cond else "").replace("%", "%%")
 
 
 def build_match_conditions(doctype, user=None, as_condition=True):
-	from frappe.model.db_query import DatabaseQuery
+	from frappe.database.query import Engine
 
-	match_conditions = DatabaseQuery(doctype, user=user).build_match_conditions(as_condition=as_condition)
+	engine = Engine()
+	engine.get_query(doctype, user=user, db_query_compat=True)
+	match_conditions = engine.build_match_conditions(as_condition=as_condition)
 	if as_condition:
 		return match_conditions.replace("%", "%%")
 	return match_conditions
@@ -842,18 +851,18 @@ def get_filters_cond(doctype, filters, conditions, ignore_permissions=None, with
 				else:
 					flt.append([doctype, f[0], "=", f[1]])
 
-		from frappe.model.db_query import DatabaseQuery
+		from frappe.database.query import Engine
 
-		query = DatabaseQuery(doctype)
-		query.filters = flt
-		query.conditions = conditions
+		engine = Engine()
+		engine.get_query(doctype, ignore_permissions=ignore_permissions, db_query_compat=True)
 
 		if with_match_conditions:
-			query.build_match_conditions()
+			if match_cond := engine.build_match_conditions():
+				conditions.append(match_cond)
 
-		query.build_filter_conditions(flt, conditions, ignore_permissions)
+		engine.build_filter_conditions(flt, conditions)
 
-		cond = " and " + " and ".join(query.conditions)
+		cond = " and " + " and ".join(conditions) if conditions else ""
 	else:
 		cond = ""
 	return cond

@@ -401,6 +401,10 @@ class CustomizeForm(Document):
 		elif prop == "in_global_search" and df.in_global_search != meta_df[0].get("in_global_search"):
 			self.flags.rebuild_doctype_for_global_search = True
 
+		elif prop == "is_virtual" and meta_df[0].get("is_virtual") == 0 and df.get("is_virtual") == 1:
+			frappe.msgprint(_("You can't set standard field {0} as virtual").format(frappe.bold(df.label)))
+			return False
+
 		return True
 
 	def set_property_setters_for_actions_and_links(self, meta):
@@ -727,6 +731,7 @@ doctype_properties = {
 	"sort_field": "Data",
 	"sort_order": "Data",
 	"default_print_format": "Data",
+	"hide_toolbar": "Check",
 	"allow_copy": "Check",
 	"istable": "Check",
 	"quick_entry": "Check",
