@@ -146,6 +146,9 @@ def init(site: str, sites_path: str = ".", new_site: bool = False, force: bool =
 	if getattr(local, "initialised", None) and not force:
 		return
 
+	if site:
+		site = site.rstrip("/")
+
 	if site and not SITE_NAME_PATTERN.match(site):
 		raise ValueError(f"Invalid site name `{site}`")
 
